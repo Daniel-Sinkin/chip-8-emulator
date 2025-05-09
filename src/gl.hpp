@@ -12,6 +12,7 @@
 #include "log.hpp"
 #include "types.hpp"
 
+namespace GL {
 using VAO = GLuint;
 using VBO = GLuint;
 using EBO = GLuint;
@@ -24,10 +25,11 @@ public:
     ProgramID id = GL_ZERO;
     std::unordered_map<std::string, UniformLocation> uniforms;
 
-    auto activate() const -> void {
-        if (id == 0) panic("Trying to activate uninitialized ShaderProgram!");
+    auto bind() const -> void {
+        if (id == GL_ZERO) panic("Trying to activate uninitialized ShaderProgram!");
         glUseProgram(id);
     }
+    static auto unbind() -> void { glUseProgram(GL_ZERO); }
 
     auto set_uniform(const std::string &name, float value) const -> void {
         glUniform1f(get_uniform(name), value);
@@ -107,24 +109,27 @@ struct GeometryBuffers {
     EBO ebo = GL_ZERO;
 };
 
-[[nodiscard]] inline auto
-create_geometry(const float *vertices, size_t vertex_size, const unsigned int *indices, size_t index_size) -> GeometryBuffers {
+template <size_t VertexCount, size_t IndexCount>
+[[nodiscard]] inline auto create_geometry(
+    const std::array<float, VertexCount> &vertices,
+    const std::array<unsigned int, IndexCount> &indices) -> GeometryBuffers {
     GeometryBuffers gb;
+
     glGenVertexArrays(1, &gb.vao);
     glBindVertexArray(gb.vao);
 
     glGenBuffers(1, &gb.vbo);
     glBindBuffer(GL_ARRAY_BUFFER, gb.vbo);
-    glBufferData(GL_ARRAY_BUFFER, vertex_size, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
 
     glGenBuffers(1, &gb.ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gb.ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_size, indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices.data(), GL_STATIC_DRAW);
 
-    glBindVertexArray(GL_ZERO);
+    glBindVertexArray(0);
 
     LOG_INFO("Created geometry: VAO = " + std::to_string(gb.vao) +
              ", VBO = " + std::to_string(gb.vbo) +
@@ -142,3 +147,14 @@ inline auto set_box_uniforms(const ShaderProgram &sp, const Rect &box) -> void {
 inline auto set_color_uniforms(const ShaderProgram &sp, const Color &color) -> void {
     sp.set_uniform("u_Color", vec3{color.r, color.g, color.b});
 }
+
+inline auto draw_simple_vao(const GeometryBuffers &geom, GLsizei index_count) -> void {
+    if (geom.vao == GL_ZERO || geom.ebo == GL_ZERO) {
+        panic("Attempting to draw with uninitialized geometry!");
+    }
+
+    glBindVertexArray(geom.vao);
+    glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+}
+} // namespace GL

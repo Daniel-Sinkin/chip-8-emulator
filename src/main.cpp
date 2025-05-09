@@ -10,6 +10,7 @@
 #include "imgui.h"
 
 // Standard library
+#include <array>
 #include <chrono>
 #include <iostream>
 
@@ -41,9 +42,9 @@ auto main(int argc, char **argv) -> int {
         global.sim.frame_start_time = now;
         global.sim.total_runtime = now - global.sim.run_start_time;
 
-        handle_inputs();
-        render_gui_debug_panel();
-        render_frame();
+        handle_input();
+        Render::gui_debug();
+        Render::frame();
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(global.renderer.window);

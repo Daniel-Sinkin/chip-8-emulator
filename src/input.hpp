@@ -47,7 +47,7 @@ inline auto handle_event(const SDL_Event &event) -> void {
     }
 }
 
-inline auto handle_inputs() -> void {
+inline auto handle_input() -> void {
     update_mouse_position();
     SDL_Event event;
     while (SDL_PollEvent(&event)) {

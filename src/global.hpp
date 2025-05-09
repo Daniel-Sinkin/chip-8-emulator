@@ -1,23 +1,25 @@
 #pragma once
 
-#include "constants.hpp"
-#include "gl.hpp"
-#include "types.hpp"
 #include <SDL.h>
 #include <chrono>
 #include <imgui.h>
 
+#include "constants.hpp"
+#include "gl.hpp"
+#include "types.hpp"
+
 struct RendererState {
     SDL_Window *window = nullptr;
-    SDL_GLContext gl_context;
+    SDL_GLContext gl_context = nullptr;
     ImGuiIO imgui_io;
 
-    VAO vao_square;
-    VAO vao_circle;
-    VAO vao_triangle;
-    VAO vao_NONE = GL_ZERO;
+    GL::GeometryBuffers geom_square;
+    GL::GeometryBuffers geom_circle;
+    GL::GeometryBuffers geom_triangle;
 
-    ShaderProgram shader_program_single_color;
+    GL::GeometryBuffers blit_quad;
+    GLuint chip8_texture = 0;
+    GL::ShaderProgram blit_shader;
 
     int gl_success;
     char gl_error_buffer[512];
