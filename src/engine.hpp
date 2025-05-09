@@ -8,7 +8,7 @@
 #include <SDL.h>
 #include <glad/glad.h>
 
-inline auto engine_setup() -> bool {
+[[nodiscard]] inline auto engine_setup() -> bool {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
         return false;

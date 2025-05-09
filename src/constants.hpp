@@ -3,32 +3,6 @@
 #include <array>
 #include <chrono>
 #include <glm/glm.hpp>
-#include <string_view>
-
-constexpr std::array<float, 51> make_circle_vertices() {
-    std::array<float, 51> v = {
-        0.000000f, 0.000000f, 0.000000f,
-        0.500000f, 0.000000f, 0.000000f,
-        0.461940f, 0.191342f, 0.000000f,
-        0.353553f, 0.353553f, 0.000000f,
-        0.191342f, 0.461940f, 0.000000f,
-        0.000000f, 0.500000f, 0.000000f,
-        -0.191342f, 0.461940f, 0.000000f,
-        -0.353553f, 0.353553f, 0.000000f,
-        -0.461940f, 0.191342f, 0.000000f,
-        -0.500000f, 0.000000f, 0.000000f,
-        -0.461940f, -0.191342f, 0.000000f,
-        -0.353553f, -0.353553f, 0.000000f,
-        -0.191342f, -0.461940f, 0.000000f,
-        -0.000000f, -0.500000f, 0.000000f,
-        0.191342f, -0.461940f, 0.000000f,
-        0.353553f, -0.353553f, 0.000000f,
-        0.461940f, -0.191342f, 0.000000f};
-    for (float &f : v) {
-        f *= 2.0f;
-    }
-    return v;
-}
 
 namespace Constants {
 inline constexpr std::string_view window_title = "Tower Defense";
@@ -59,8 +33,24 @@ inline constexpr std::array<float, 9> triangle_vertices = {
 inline constexpr std::array<unsigned int, 3> triangle_indices = {
     0, 1, 2};
 
-// forward-declared elsewhere or defined here
-inline constexpr auto circle_vertices = make_circle_vertices();
+inline constexpr std::array<float, 51> circle_vertices = {
+    0.000000f, 0.000000f, 0.000000f,
+    1.000000f, 0.000000f, 0.000000f,
+    0.923880f, 0.382684f, 0.000000f,
+    0.707106f, 0.707106f, 0.000000f,
+    0.382684f, 0.923880f, 0.000000f,
+    0.000000f, 1.000000f, 0.000000f,
+    -0.382684f, 0.923880f, 0.000000f,
+    -0.707106f, 0.707106f, 0.000000f,
+    -0.923880f, 0.382684f, 0.000000f,
+    -1.000000f, 0.000000f, 0.000000f,
+    -0.923880f, -0.382684f, 0.000000f,
+    -0.707106f, -0.707106f, 0.000000f,
+    -0.382684f, -0.923880f, 0.000000f,
+    -0.000000f, -1.000000f, 0.000000f,
+    0.382684f, -0.923880f, 0.000000f,
+    0.707106f, -0.707106f, 0.000000f,
+    0.923880f, -0.382684f, 0.000000f};
 
 inline constexpr std::array<unsigned int, 48> circle_indices = {
     0, 1, 2, 0, 2, 3, 0, 3, 4,
@@ -83,5 +73,4 @@ inline constexpr int max_tower_level = 5;
 inline constexpr char const *fp_shader_dir = "assets/shaders/";
 inline constexpr char const *fp_vertex_shader = "assets/shaders/vertex.glsl";
 inline constexpr char const *fp_fragment_shader = "assets/shaders/fragment.glsl";
-inline constexpr char const *fp_fragment_tower_range_shader = "assets/shaders/fragment_tower_range.glsl";
 } // namespace Constants
