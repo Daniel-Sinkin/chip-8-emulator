@@ -46,23 +46,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ---------------------------------------
-# Fetch xtl & xtensor & glm (unchanged)
-FetchContent_Declare(
-    xtl
-    GIT_REPOSITORY https://github.com/xtensor-stack/xtl.git
-    GIT_TAG 0.8.0
-)
-set(XTL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(xtl)
-
-FetchContent_Declare(
-    xtensor
-    GIT_REPOSITORY https://github.com/xtensor-stack/xtensor.git
-    GIT_TAG 0.26.0
-)
-set(XTENSOR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(xtensor)
-
+# Fetch glm
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -89,13 +73,19 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 add_executable(main ${SOURCES})
 
 # Copy data directory after build
-add_custom_target(copy_assets ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/assets
-        ${CMAKE_BINARY_DIR}/assets
-    COMMENT "Copying assets into build directory"
-)
-
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
+    add_custom_target(copy_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/assets
+            ${CMAKE_BINARY_DIR}/assets
+        COMMENT "Copying assets into build directory"
+    )
+else()
+    message(WARNING "No assets directory found at ${CMAKE_SOURCE_DIR}/assets – skipping copy_assets target.")
+    add_custom_target(copy_assets ALL
+        COMMENT "No assets to copy"
+    )
+endif()
 add_dependencies(main copy_assets)
 
 # === include dirs ===
@@ -108,8 +98,6 @@ target_include_directories(main SYSTEM PRIVATE
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
     ${stb_SOURCE_DIR}
-    ${xtl_SOURCE_DIR}/include
-    ${xtensor_SOURCE_DIR}/include
 )
 
 find_package(OpenGL REQUIRED)
@@ -132,8 +120,6 @@ target_link_libraries(main PRIVATE
     glad
     OpenGL::GL
     imgui_impl
-    xtl
-    xtensor
     glm::glm
     nlohmann_json::nlohmann_json
 )
