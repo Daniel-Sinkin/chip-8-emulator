@@ -25,10 +25,16 @@
 #include "utils.hpp"
 
 auto main(int argc, char **argv) -> int {
+    LOG_INFO("Application starting");
+
     if (!engine_setup()) panic("Setup failed!");
+    LOG_INFO("Engine setup complete");
+
     global.is_running = true;
     global.sim.run_start_time = std::chrono::steady_clock::now();
     global.sim.frame_start_time = global.sim.run_start_time;
+
+    LOG_INFO("Entering main loop");
     while (global.is_running) {
         auto now = std::chrono::steady_clock::now();
         global.sim.delta_time = now - global.sim.frame_start_time;
@@ -45,7 +51,10 @@ auto main(int argc, char **argv) -> int {
         global.sim.frame_counter += 1;
     }
 
+    LOG_INFO("Main loop exited");
     engine_cleanup();
+    LOG_INFO("Engine cleanup complete");
+    LOG_INFO("Application exiting successfully");
 
     return EXIT_SUCCESS;
 }

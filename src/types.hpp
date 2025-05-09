@@ -14,6 +14,11 @@ struct Position {
     float y;
 };
 
+[[nodiscard]] inline auto to_string(const Position &pos) -> std::string {
+    return "(" + std::to_string(pos.x) + ", " + std::to_string(pos.y) + ")";
+}
+
+// Updates global.input.mouse_pos in normalized window coordinates
 inline std::ostream &operator<<(std::ostream &os, const Position &p) {
     return os
            << "Position("

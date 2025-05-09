@@ -3,14 +3,13 @@
 
 #include "constants.hpp"
 #include "global.hpp"
+#include "log.hpp"
 #include "types.hpp"
 #include "utils.hpp"
-#include <SDL.h>
-#include <iostream>
 
 #include "backends/imgui_impl_sdl.h"
+#include <SDL.h>
 
-// Updates global.input.mouse_pos in normalized window coordinates
 inline auto update_mouse_position() -> void {
     int mouse_x, mouse_y;
     SDL_GetMouseState(&mouse_x, &mouse_y);
@@ -19,18 +18,19 @@ inline auto update_mouse_position() -> void {
         static_cast<float>(mouse_y) / Constants::window_height};
 }
 
-// Processes one SDL event and updates global state accordingly
 inline auto handle_event(const SDL_Event &event) -> void {
     ImGui_ImplSDL2_ProcessEvent(&event);
 
     switch (event.type) {
     case SDL_QUIT:
+        LOG_INFO("Received SDL_QUIT event");
         global.is_running = false;
         break;
 
     case SDL_KEYDOWN:
         switch (event.key.keysym.sym) {
         case SDLK_ESCAPE:
+            LOG_INFO("Escape key pressed — exiting");
             global.is_running = false;
             break;
         }
@@ -38,17 +38,15 @@ inline auto handle_event(const SDL_Event &event) -> void {
 
     case SDL_MOUSEBUTTONDOWN:
         if (event.button.button == SDL_BUTTON_LEFT) {
-            std::cout << "Mouse Clicked at: " << global.input.mouse_pos << "\n";
-        }
-        if (event.button.button == SDL_BUTTON_RIGHT) {
+            LOG_INFO("Left click at: " + to_string(global.input.mouse_pos));
+        } else if (event.button.button == SDL_BUTTON_RIGHT) {
             Position mouse_pos_ndc = window_normalized_to_ndc(global.input.mouse_pos, Constants::aspect_ratio);
-            (void)mouse_pos_ndc; // placeholder — do something with it later
+            LOG_INFO("Right click NDC: " + to_string(mouse_pos_ndc));
         }
         break;
     }
 }
 
-// High-level input polling wrapper
 inline auto handle_inputs() -> void {
     update_mouse_position();
     SDL_Event event;

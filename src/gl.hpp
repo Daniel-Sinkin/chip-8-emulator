@@ -6,7 +6,6 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 
@@ -56,13 +55,14 @@ public:
         if (!success) {
             char info_log[512];
             glGetProgramInfoLog(id, 512, nullptr, info_log);
-            std::cerr << "Shader Program Linking Failed:\n"
-                      << info_log << "\n";
-            panic("Shader Program linking failed.");
+            LOG_ERR("Shader Program Linking Failed:\n" + std::string(info_log));
+            panic("Shader Program linking failed");
         }
 
         glDeleteShader(vert);
         glDeleteShader(frag);
+
+        LOG_INFO(std::string("Shader program loaded: ") + vertex_path + " / " + fragment_path);
     }
 
 private:
@@ -75,7 +75,7 @@ private:
     [[nodiscard]] auto compile_shader_from_file(const char *filepath, GLenum type) -> ShaderID {
         std::ifstream in(filepath);
         if (!in) {
-            std::cerr << "Couldn't open file: " << filepath << "\n";
+            LOG_ERR("Couldn't open shader file: " + std::string(filepath));
             panic("Shader file open failed");
         }
 
@@ -91,10 +91,9 @@ private:
         GLint success;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
         if (!success) {
-            char log[512];
-            glGetShaderInfoLog(shader, 512, nullptr, log);
-            std::cerr << "Shader Compilation Failed (" << filepath << "):\n"
-                      << log << "\n";
+            char error_log[512];
+            glGetShaderInfoLog(shader, 512, nullptr, error_log);
+            LOG_ERR(std::string("Shader Compilation Failed (") + filepath + "):\n" + error_log);
             panic("Shader compile error");
         }
 
@@ -126,6 +125,11 @@ create_geometry(const float *vertices, size_t vertex_size, const unsigned int *i
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_size, indices, GL_STATIC_DRAW);
 
     glBindVertexArray(GL_ZERO);
+
+    LOG_INFO("Created geometry: VAO = " + std::to_string(gb.vao) +
+             ", VBO = " + std::to_string(gb.vbo) +
+             ", EBO = " + std::to_string(gb.ebo));
+
     return gb;
 }
 

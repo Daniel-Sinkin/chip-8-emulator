@@ -2,15 +2,17 @@
 
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl.h"
-#include "global.hpp"
 #include "imgui.h"
-#include "utils.hpp"
 #include <SDL.h>
 #include <glad/glad.h>
 
+#include "global.hpp"
+#include "log.hpp"
+#include "utils.hpp"
+
 [[nodiscard]] inline auto engine_setup() -> bool {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
-        std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
+        LOG_ERR(std::string("SDL_Init failed: ") + SDL_GetError());
         return false;
     }
 
@@ -25,14 +27,14 @@
         Constants::window_width, Constants::window_height,
         SDL_WINDOW_OPENGL);
     if (!global.renderer.window) {
-        std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << "\n";
+        LOG_ERR(std::string("SDL_CreateWindow failed: ") + SDL_GetError());
         SDL_Quit();
         return false;
     }
 
     global.renderer.gl_context = SDL_GL_CreateContext(global.renderer.window);
     if (!global.renderer.gl_context) {
-        std::cerr << "SDL_GL_CreateContext failed: " << SDL_GetError() << "\n";
+        LOG_ERR(std::string("SDL_GL_CreateContext failed: ") + SDL_GetError());
         SDL_DestroyWindow(global.renderer.window);
         SDL_Quit();
         return false;
@@ -42,7 +44,7 @@
     SDL_GL_SetSwapInterval(1);
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        std::cerr << "GLAD init failed\n";
+        LOG_ERR("GLAD initialization failed");
         return false;
     }
 
@@ -61,6 +63,8 @@
 }
 
 inline auto engine_cleanup() -> void {
+    LOG_INFO("Cleaning up engine resources");
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
