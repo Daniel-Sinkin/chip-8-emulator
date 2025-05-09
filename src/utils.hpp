@@ -10,6 +10,16 @@
 #include <sstream>
 #include <string>
 
+[[nodiscard]] inline auto window_normalized_to_ndc(
+    const Position &norm_pos,
+    float aspect_ratio) -> Position {
+    auto pos = Position{
+        norm_pos.x * 2.0f - 1.0f,
+        1.0f - norm_pos.y * 2.0f};
+    pos.x *= aspect_ratio;
+    return pos;
+}
+
 [[nodiscard]] inline auto
 ndc_to_window_normalized(const Position &ndc_pos, float aspect_ratio) -> Position {
     return Position{

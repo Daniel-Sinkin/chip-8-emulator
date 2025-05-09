@@ -1,15 +1,17 @@
 /* danielsinkin97@gmail.com */
 #pragma once
 
+#include <fstream>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 
+#include "log.hpp"
 #include "types.hpp"
-#include "utils.hpp"
 
 using VAO = GLuint;
 using VBO = GLuint;
