@@ -27,7 +27,7 @@ struct RendererState {
     auto panic_gl(const char *reason) -> void {
         std::cerr << reason << "\n"
                   << gl_error_buffer << "\n";
-        panic("GL Error");
+        PANIC("GL Error");
     }
 };
 

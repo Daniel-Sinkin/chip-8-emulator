@@ -22,12 +22,12 @@ using UniformLocation = GLint;
 
 class ShaderProgram {
 public:
-    ProgramID id = GL_ZERO;
-    std::unordered_map<std::string, UniformLocation> uniforms;
+    ProgramID m_id = GL_ZERO;
+    std::unordered_map<std::string, UniformLocation> m_uniforms;
 
     auto bind() const -> void {
-        if (id == GL_ZERO) panic("Trying to activate uninitialized ShaderProgram!");
-        glUseProgram(id);
+        if (m_id == GL_ZERO) PANIC("Trying to activate uninitialized ShaderProgram!");
+        glUseProgram(m_id);
     }
     static auto unbind() -> void { glUseProgram(GL_ZERO); }
 
@@ -47,18 +47,18 @@ public:
         const auto vert = compile_shader_from_file(vertex_path, GL_VERTEX_SHADER);
         const auto frag = compile_shader_from_file(fragment_path, GL_FRAGMENT_SHADER);
 
-        id = glCreateProgram();
-        glAttachShader(id, vert);
-        glAttachShader(id, frag);
-        glLinkProgram(id);
+        m_id = glCreateProgram();
+        glAttachShader(m_id, vert);
+        glAttachShader(m_id, frag);
+        glLinkProgram(m_id);
 
         GLint success;
-        glGetProgramiv(id, GL_LINK_STATUS, &success);
+        glGetProgramiv(m_id, GL_LINK_STATUS, &success);
         if (!success) {
             char info_log[512];
-            glGetProgramInfoLog(id, 512, nullptr, info_log);
+            glGetProgramInfoLog(m_id, 512, nullptr, info_log);
             LOG_ERR("Shader Program Linking Failed:\n" + std::string(info_log));
-            panic("Shader Program linking failed");
+            PANIC("Shader Program linking failed");
         }
 
         glDeleteShader(vert);
@@ -69,16 +69,16 @@ public:
 
 private:
     [[nodiscard]] auto get_uniform(const std::string &name) const -> UniformLocation {
-        auto it = uniforms.find(name);
-        if (it != uniforms.end()) return it->second;
-        panic("Uniform not found: " + name);
+        auto it = m_uniforms.find(name);
+        if (it != m_uniforms.end()) return it->second;
+        PANIC("Uniform not found: " + name);
     }
 
     [[nodiscard]] auto compile_shader_from_file(const char *filepath, GLenum type) -> ShaderID {
         std::ifstream in(filepath);
         if (!in) {
             LOG_ERR("Couldn't open shader file: " + std::string(filepath));
-            panic("Shader file open failed");
+            PANIC("Shader file open failed");
         }
 
         std::ostringstream ss;
@@ -96,7 +96,7 @@ private:
             char error_log[512];
             glGetShaderInfoLog(shader, 512, nullptr, error_log);
             LOG_ERR(std::string("Shader Compilation Failed (") + filepath + "):\n" + error_log);
-            panic("Shader compile error");
+            PANIC("Shader compile error");
         }
 
         return shader;
@@ -150,7 +150,7 @@ inline auto set_color_uniforms(const ShaderProgram &sp, const Color &color) -> v
 
 inline auto draw_simple_vao(const GeometryBuffers &geom, GLsizei index_count) -> void {
     if (geom.vao == GL_ZERO || geom.ebo == GL_ZERO) {
-        panic("Attempting to draw with uninitialized geometry!");
+        PANIC("Attempting to draw with uninitialized geometry!");
     }
 
     glBindVertexArray(geom.vao);

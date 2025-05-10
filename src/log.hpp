@@ -35,4 +35,15 @@ panic_impl(const std::string &msg, const char *file, int line) -> void {
     LOG_ERR("PANIC: '" + msg + "' at '" + file + ":" + std::to_string(line) + "'");
     std::exit(EXIT_FAILURE);
 }
-#define panic(msg) panic_impl((msg), __FILE__, __LINE__)
+#define PANIC(msg) panic_impl((msg), __FILE__, __LINE__)
+
+[[noreturn]] inline auto
+PANIC_not_implemented(uint16_t opcode) -> void {
+    PANIC(std::format("Instruction not Implemented: {:#06x}", opcode));
+}
+
+// For instructions that are not defined in the CHIP-8 spec
+[[noreturn]] inline auto
+PANIC_undefined(uint16_t opcode) -> void {
+    PANIC(std::format("Undefined instruction: {:#06x}", opcode));
+}
