@@ -231,12 +231,18 @@ auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD> {
     return instructions;
 }
 
-auto load_program_example_ibm(Chip8 &c) -> void {
-    auto data = load_ch8("assets/IBM Logo.ch8");
+auto write_program_to_memory(Chip8 &c, std::vector<WORD> data) -> void {
     WORD addr = 0x200;
     for (const auto &word : data) {
         Instruction{word}.write_to_mem(c.mem, addr);
     }
+}
+auto load_program_example_ibm(Chip8 &c) -> void {
+    write_program_to_memory(c, load_ch8("assets/IBM Logo.ch8"));
+}
+auto load_program_example_corax_test_rom(Chip8 &c) -> void {
+    // https://github.com/corax89/chip8-test-rom
+    write_program_to_memory(c, load_ch8("assets/IBM Logo.ch8"));
 }
 
 auto load_program_example_simple(Chip8 &c) -> void {

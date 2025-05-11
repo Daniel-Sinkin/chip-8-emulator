@@ -48,8 +48,6 @@ auto main(int argc, char **argv) -> int {
     global.sim.frame_start_time = global.sim.run_start_time;
 
     auto last_instruction_time = std::chrono::steady_clock::now();
-    bool first_loop = true;
-
     LOG_INFO("Entering main loop");
     while (global.is_running) {
         auto now = std::chrono::steady_clock::now();
@@ -58,8 +56,7 @@ auto main(int argc, char **argv) -> int {
         global.sim.total_runtime = now - global.sim.run_start_time;
 
         if (std::chrono::duration_cast<std::chrono::seconds>(now - last_instruction_time).count() >= 1) {
-            auto instr = fetch_instruction(chip8);
-            execute_instruction(chip8, instr);
+            fetch_and_execute(chip8);
             last_instruction_time = now;
         }
 
@@ -70,11 +67,6 @@ auto main(int argc, char **argv) -> int {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(global.renderer.window);
 
-        if (first_loop) {
-            first_loop = false;
-        } else if (global.sim.frame_counter == 1) {
-            std::this_thread::sleep_for(std::chrono::seconds(20));
-        }
         global.sim.frame_counter += 1;
     }
 
