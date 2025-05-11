@@ -65,6 +65,7 @@
         "variant": "cpp",
         "algorithm": "cpp",
         "chrono": "cpp",
-        "source_location": "cpp"
+        "source_location": "cpp",
+        "future": "cpp"
     }
 }

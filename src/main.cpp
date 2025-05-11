@@ -38,14 +38,8 @@ using namespace std::chrono_literals;
 using CHIP8::chip8;
 
 auto main(int argc, char **argv) -> int {
-    CHIP8_TESTS::opcode_roundtrip();
-    return EXIT_SUCCESS;
     CHIP8::initialise(chip8);
     CHIP8::load_program_example_ibm(chip8);
-    auto pw = CHIP8::ProgramWriter(chip8, 0x228);
-    pw.ld_vx_byte(0x5, static_cast<BYTE>(255));
-    pw.set_delay(0x5);
-    pw.jmp(pw.addr);
     CHIP8::dump_memory(chip8);
 
     LOG_INFO("Application starting");
