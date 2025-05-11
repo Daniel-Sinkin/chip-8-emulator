@@ -187,8 +187,8 @@ auto execute_instruction(Chip8 &c, const Instruction &instr) -> void {
             if (VY + row_idx >= c.display.size()) break;
             BYTE sprite_byte = c.mem[c.I + row_idx];
             for (size_t col = 0; col < 8; ++col) {
-                auto pixel = (sprite_byte >> (7 - col)) & 1;
-                auto curr = c.display[VY + row_idx][VX + col];
+                PIXEL pixel = (sprite_byte >> (7 - col)) & 1;
+                PIXEL curr = c.display[VY + row_idx][VX + col];
                 if (curr && pixel) {
                     c.VX[0xF] = 1;
                 }
