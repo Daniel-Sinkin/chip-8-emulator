@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <random>
 #include <stack>
 #include <stdexcept>
 #include <string>
@@ -16,6 +17,7 @@
 #include "constants.hpp"
 #include "log.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 
 namespace CHIP8 {
 struct Chip8 {
@@ -111,39 +113,50 @@ struct OpInfo {
 
 // clang-format off
 inline auto exec_cls                 (Chip8 &c, WORD  ) -> void { clear_display(c); }
-inline auto exec_ret                 (Chip8 &c, WORD  ) -> void { c.PC = c.stack[--c.stack_pointer]; }
+inline auto exec_ret                 (Chip8 &c, WORD  ) -> void { c.PC = c.stack[c.stack_pointer--]; }
 inline auto exec_jmp                 (Chip8 &c, WORD w) -> void { c.PC = field_NNN(w); }
-inline auto exec_call_subroutine     (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_skip_eq             (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_skip_not_eq         (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_skip_eq_register    (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_call_subroutine     (Chip8 &c, WORD w) -> void { 
+    c.stack[++c.stack_pointer] = c.PC;
+    c.PC = field_NNN(w);
+}
+inline auto exec_skip_eq             (Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] == field_NN(w)) c.PC += 2; }
+inline auto exec_skip_not_eq         (Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] != field_NN(w)) c.PC += 2; }
+inline auto exec_skip_eq_register    (Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] != c.VX[field_Y(w)]) c.PC += 2; }
 inline auto exec_set_register        (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = field_NN(w); }
 inline auto exec_add_to_register     (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] += field_NN(w); } // TODO: What to do about overflow?
-inline auto exec_copy_register       (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_math_or             (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_math_and            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_math_xor            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_math_add            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_math_sub            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_shr                 (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_subn                (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_shl                 (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_skip_not_eq_register(Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_copy_register       (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = c.VX[field_Y(w)]; }
+inline auto exec_math_or             (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] |= c.VX[field_Y(w)]; }
+inline auto exec_math_and            (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] &= c.VX[field_Y(w)]; }
+inline auto exec_math_xor            (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] ^= c.VX[field_Y(w)]; }
+inline auto exec_math_add            (Chip8 &c, WORD w) -> void {
+    WORD tmp = c.VX[field_X(w)];
+    tmp += c.VX[field_Y(w)];
+    c.VX[0xF] = (tmp > 0xFF) ? 1 : 0; // Carry Flag bit
+    c.VX[field_X(w)] = static_cast<BYTE>(tmp);
+}
+inline auto exec_math_sub            (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_shr                 (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_subn                (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_shl                 (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_skip_not_eq_register(Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] != c.VX[field_Y(w)]) c.PC += 2; }
 inline auto exec_set_i               (Chip8 &c, WORD w) -> void {c.I = field_NNN(w);}
-inline auto exec_jmp_offset          (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_get_random          (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_draw                 (Chip8 &c, WORD w) -> void { draw_sprite(c, w); }
-inline auto exec_skip_pressed        (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_skip_not_pressed    (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_load_delay          (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_wait_key            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_jmp_offset          (Chip8 &c, WORD w) -> void { c.PC = field_NNN(w) + c.VX[0x0]; }
+inline auto exec_get_random          (Chip8 &c, WORD w) -> void {
+    BYTE rand = get_random_byte();
+    c.VX[field_X(w)] = rand & field_NN(w);
+}
+inline auto exec_draw                (Chip8 &c, WORD w) -> void { draw_sprite(c, w); }
+inline auto exec_skip_pressed        (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_skip_not_pressed    (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_load_delay          (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = c.delay_timer; }
+inline auto exec_wait_key            (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
 inline auto exec_set_delay           (Chip8 &c, WORD w) -> void { c.delay_timer = c.VX[field_X(w)]; }
-inline auto exec_set_sound           (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_add_i               (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_set_i_sprite        (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_store_bcd           (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_dump_registers      (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_fill_registers      (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_set_sound           (Chip8 &c, WORD w) -> void { c.sound_timer = c.VX[field_X(w)]; }
+inline auto exec_add_i               (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_set_i_sprite        (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_store_bcd           (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_dump_registers      (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_fill_registers      (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
 inline auto exec_sys                 (Chip8 &c, WORD w) -> void { PANIC_UNDEFINED(w); }
 
 inline auto encode_cls                 (WORD,WORD,WORD,WORD,WORD         ) -> WORD { return 0x00E0; }
@@ -168,7 +181,7 @@ inline auto encode_skip_not_eq_register(WORD X, WORD Y, WORD, WORD, WORD ) -> WO
 inline auto encode_set_i               (WORD, WORD, WORD, WORD, WORD NNN ) -> WORD { return 0xA000 | (NNN & 0x0FFF); }
 inline auto encode_jmp_offset          (WORD, WORD, WORD, WORD, WORD NNN ) -> WORD { return 0xB000 | (NNN & 0x0FFF); }
 inline auto encode_get_random          (WORD X, WORD, WORD, WORD NN, WORD) -> WORD { return 0xC000 | ((X & 0xF) << 8) | (NN & 0xFF); }
-inline auto encode_draw                 (WORD X,WORD Y,WORD N,WORD,WORD   ) -> WORD { return 0xD000 | ((X&0xF)<<8) | ((Y&0xF)<<4) | (N&0xF); }
+inline auto encode_draw                (WORD X,WORD Y,WORD N,WORD,WORD   ) -> WORD { return 0xD000 | ((X&0xF)<<8) | ((Y&0xF)<<4) | (N&0xF); }
 inline auto encode_skip_pressed        (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xE09E | ((X & 0xF) << 8); }
 inline auto encode_skip_not_pressed    (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xE0A1 | ((X & 0xF) << 8); }
 inline auto encode_load_delay          (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF007 | ((X & 0xF) << 8); }
@@ -251,7 +264,7 @@ public:
     WORD addr;
 
     void set_addr(WORD new_addr) { addr = new_addr; }
-    explicit ProgramWriter(Chip8& chip, WORD start = 0x200)
+    explicit ProgramWriter(Chip8 & chip, WORD start = 0x200)
         : c(chip), addr(start) {}
 
     // TODO(CLEANUP): Fix Alignment
@@ -292,7 +305,7 @@ public:
     void set_sound    (BYTE x)                   { write_encoded(Op::set_sound,           x); }              // Fx18
 
 private:
-    Chip8& c;
+    Chip8 &c;
 
     // central helper that does the actual write
     void write_encoded(Op id, WORD X = 0, WORD Y = 0,
@@ -313,82 +326,131 @@ inline auto decode(WORD opcode) -> OpInfo const * {
     return nullptr;
 }
 
-inline auto human_readable(WORD opcode) -> std::optional<std::string_view> {
-    if (auto *info = decode(opcode)) {
+inline auto human_readable_fmt(WORD opcode) -> std::optional<std::string> {
+    if (const auto *info = decode(opcode)) {
         switch (info->id) {
+        /* ───────────────────────────── system / flow ───────────────────────── */
         case Op::sys:
-            if (!opcode) return std::nullopt;
-            return "Execute system call at NNN (legacy)";
+            if (opcode == 0) return std::nullopt;
+            return std::format("Execute system call at #{:03X}", field_NNN(opcode));
         case Op::cls:
             return "Clear the display";
         case Op::ret:
             return "Return from sub-routine";
         case Op::jmp:
-            return "Jump to address NNN";
+            return std::format(
+                "Jump to address #{:03X}", field_NNN(opcode));
         case Op::call_subroutine:
-            return "Call sub-routine at NNN";
+            return std::format(
+                "Call sub-routine at #{:03X}", field_NNN(opcode));
         case Op::jmp_offset:
-            return "Jump to V0 + NNN";
+            return std::format(
+                "Jump to V0 + #{:03X}", field_NNN(opcode));
         case Op::skip_eq:
-            return "Skip next instr. if Vx == NN";
+            return std::format(
+                "Skip next if V{:X} == #{:02X}",
+                field_X(opcode), field_NN(opcode));
         case Op::skip_not_eq:
-            return "Skip next instr. if Vx != NN";
+            return std::format(
+                "Skip next if V{:X} != #{:02X}",
+                field_X(opcode), field_NN(opcode));
         case Op::skip_eq_register:
-            return "Skip next instr. if Vx == Vy";
+            return std::format(
+                "Skip next if V{:X} == V{:X}",
+                field_X(opcode), field_Y(opcode));
         case Op::skip_not_eq_register:
-            return "Skip next instr. if Vx != Vy";
+            return std::format(
+                "Skip next if V{:X} != V{:X}",
+                field_X(opcode), field_Y(opcode));
         case Op::skip_pressed:
-            return "Skip next instr. if key Vx pressed";
+            return std::format(
+                "Skip next if key V{:X} pressed",
+                field_X(opcode));
         case Op::skip_not_pressed:
-            return "Skip next instr. if key Vx not pressed";
+            return std::format(
+                "Skip next if key V{:X} NOT pressed",
+                field_X(opcode));
         case Op::set_register:
-            return "Vx <- NN";
+            return std::format(
+                "V{:X} ← #{:02X}",
+                field_X(opcode), field_NN(opcode));
         case Op::add_to_register:
-            return "Vx += NN";
-        case Op::get_random:
-            return "Vx <- (rand & NN)";
+            return std::format(
+                "V{:X} += #{:02X}",
+                field_X(opcode), field_NN(opcode));
         case Op::copy_register:
-            return "Vx <- Vy";
+            return std::format(
+                "V{:X} ← V{:X}",
+                field_X(opcode), field_Y(opcode));
         case Op::math_or:
-            return "Vx |= Vy";
+            return std::format(
+                "V{:X} |= V{:X}", field_X(opcode), field_Y(opcode));
         case Op::math_and:
-            return "Vx &= Vy";
+            return std::format(
+                "V{:X} &= V{:X}", field_X(opcode), field_Y(opcode));
         case Op::math_xor:
-            return "Vx ^= Vy";
+            return std::format(
+                "V{:X} ^= V{:X}", field_X(opcode), field_Y(opcode));
         case Op::math_add:
-            return "Vx += Vy   (VF = carry)";
+            return std::format(
+                "V{:X} += V{:X}   (VF = carry)",
+                field_X(opcode), field_Y(opcode));
         case Op::math_sub:
-            return "Vx -= Vy   (VF = !borrow)";
+            return std::format(
+                "V{:X} -= V{:X}   (VF = !borrow)",
+                field_X(opcode), field_Y(opcode));
         case Op::shr:
-            return "Vx >>= 1   (VF = LSB before shift)";
+            return std::format(
+                "V{:X} >>= 1      (VF = LSB before shift)",
+                field_X(opcode));
         case Op::subn:
-            return "Vx = Vy-Vx (VF = !borrow)";
+            return std::format(
+                "V{:X} = V{:X}-V{:X} (VF = !borrow)",
+                field_X(opcode), field_Y(opcode), field_X(opcode));
         case Op::shl:
-            return "Vx <<= 1   (VF = MSB before shift)";
+            return std::format(
+                "V{:X} <<= 1      (VF = MSB before shift)",
+                field_X(opcode));
         case Op::set_i:
-            return "I <- NNN";
+            return std::format(
+                "I ← #{:03X}", field_NNN(opcode));
         case Op::add_i:
-            return "I += Vx";
+            return std::format(
+                "I += V{:X}", field_X(opcode));
         case Op::set_i_sprite:
-            return "I <- sprite addr for digit Vx";
+            return std::format(
+                "I ← sprite address for digit V{:X}", field_X(opcode));
         case Op::store_bcd:
-            return "Store BCD of Vx at I..I+2";
+            return std::format(
+                "Store BCD of V{:X} at I, I+1, I+2", field_X(opcode));
         case Op::dump_registers:
-            return "Store V0..Vx to memory at I";
+            return std::format(
+                "Store V0..V{:X} to memory at I", field_X(opcode));
         case Op::fill_registers:
-            return "Load  V0..Vx from memory at I";
-        case Op::draw:
-            return "Draw 8xN sprite at (Vx, Vy)";
+            return std::format(
+                "Load V0..V{:X} from memory at I", field_X(opcode));
         case Op::load_delay:
-            return "Vx ← delay-timer value";
+            return std::format(
+                "V{:X} ← delay-timer", field_X(opcode));
         case Op::wait_key:
-            return "Wait for key press, store in Vx";
+            return std::format(
+                "Wait for key-press, store in V{:X}", field_X(opcode));
         case Op::set_delay:
-            return "Delay-timer <- Vx";
+            return std::format(
+                "delay-timer ← V{:X}", field_X(opcode));
         case Op::set_sound:
-            return "Sound-timer <- Vx";
+            return std::format(
+                "sound-timer ← V{:X}", field_X(opcode));
+        case Op::get_random:
+            return std::format(
+                "V{:X} ← (rand & #{:02X})",
+                field_X(opcode), field_NN(opcode));
+        case Op::draw:
+            return std::format(
+                "Draw 8x{:X} sprite at (V{:X},V{:X})   (VF = collision)",
+                field_N(opcode), field_X(opcode), field_Y(opcode));
         default:
-            return std::nullopt;
+            return std::nullopt; // should not happen
         }
     }
     return std::nullopt;
@@ -415,7 +477,6 @@ inline auto disassemble(WORD w) -> std::string {
 inline auto fetch_and_execute(Chip8 &c) -> void {
     c.iteration_counter += 1;
     WORD op = (c.mem[c.PC] << 8) | c.mem[c.PC + 1];
-    LOG_INFO(disassemble(op));
     c.PC += 2;
 
     if (auto info = decode(op)) {
@@ -430,15 +491,13 @@ inline auto format_instruction_line(WORD pc, WORD instr) -> std::string {
     std::string disasm = CHIP8::disassemble(instr);
 
     std::string padded = disasm;
-    if (padded.size() < align_to) {
+    if (padded.size() < align_to)
         padded += std::string(align_to - padded.size(), ' ');
-    }
 
-    if (auto human = human_readable(instr); human) {
+    if (auto human = human_readable_fmt(instr); human)
         return std::format("{:04X}: {}; {}", pc, padded, *human);
-    } else {
+    else
         return std::format("{:04X}: {}", pc, disasm);
-    }
 }
 
 inline auto log_current_operation(const Chip8 &c) -> void {

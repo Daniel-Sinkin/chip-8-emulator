@@ -7,7 +7,7 @@
 using namespace std::chrono_literals;
 
 namespace Constants {
-inline constexpr std::string_view window_title = "Tower Defense";
+inline constexpr std::string_view window_title = "Chip-8 Emulator";
 inline constexpr int window_width = 1280;
 inline constexpr int window_height = 720;
 inline constexpr float aspect_ratio = static_cast<float>(window_width) / window_height;

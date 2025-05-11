@@ -16,7 +16,7 @@ auto opcode_roundtrip() -> void {
 
         assert(info->encode(X, Y, N, NN, NNN) == opcode);
 
-        auto doc = CHIP8::human_readable(opcode);
+        auto doc = CHIP8::human_readable_fmt(opcode);
         assert(doc.has_value());
     }
 }
