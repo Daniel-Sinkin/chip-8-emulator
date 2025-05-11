@@ -2,26 +2,22 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <optional>
 #include <stack>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
-using BYTE = uint8_t;
-using PIXEL = uint8_t; // In principle we could use bool but bit arrays are slower, memory tradeoff worth it
-using WORD = uint16_t;
+#include "constants.hpp"
+#include "log.hpp"
+#include "types.hpp"
 
-auto print_binary_word = [](WORD value) {
-    std::bitset<16> bits(value);
-    for (int i = 15; i >= 0; --i) {
-        std::cout << bits[i];
-        if (i % 4 == 0 && i != 0) std::cout << "_"; // Add separator every 4 bits
-    }
-};
-
+namespace CHIP8 {
 struct Chip8 {
     std::array<BYTE, 4 * 1024> mem = {};
     std::array<std::array<PIXEL, 64>, 32> display = {};
@@ -31,181 +27,210 @@ struct Chip8 {
     std::array<WORD, 32> stack = {};
     BYTE delay_timer = 0;
     BYTE sound_timer = 0;
+    std::chrono::steady_clock::time_point timer_update = std::chrono::steady_clock::now();
     std::array<BYTE, 16> VX{};
 };
 inline Chip8 chip8;
 
-struct Instruction {
-    WORD val;
+inline constexpr BYTE field_X(WORD w) { return (w >> 8) & 0xF; }
+inline constexpr BYTE field_Y(WORD w) { return (w >> 4) & 0xF; }
+inline constexpr BYTE field_N(WORD w) { return w & 0xF; }
+inline constexpr BYTE field_NN(WORD w) { return w & 0xFF; }
+inline constexpr WORD field_NNN(WORD w) { return w & 0x0FFF; }
 
-    auto op() const -> BYTE { return static_cast<BYTE>((val & 0xF000) >> 12); }
-    auto X() const -> BYTE { return static_cast<BYTE>((val & 0x0F00) >> 8); }
-    auto Y() const -> BYTE { return static_cast<BYTE>((val & 0x00F0) >> 4); }
-    auto NNN() const -> WORD { return val & 0x0FFF; }
-    auto NN() const -> BYTE { return static_cast<BYTE>(val & 0x00FF); }
-    auto N() const -> BYTE { return static_cast<BYTE>(val & 0x000F); }
+inline auto clear_display(Chip8 &c) -> void {
+    for (auto &row : c.display) {
+        row.fill(0);
+    }
+}
+inline auto draw_sprite(Chip8 &c, WORD w) -> void {
+    BYTE x = c.VX[field_X(w)] % 64;
+    BYTE y = c.VX[field_Y(w)] % 32;
+    c.VX[0xF] = 0;
+    for (int row = 0; row < field_N(w); ++row) {
+        uint8_t sprite = c.mem[c.I + row];
+        for (int bit = 0; bit < 8; ++bit) {
+            auto px = (sprite >> (7 - bit)) & 1;
+            auto &dst = c.display[y + row][x + bit];
+            if (dst && px) c.VX[0xF] = 1;
+            dst ^= px;
+        }
+    }
+}
 
-    static auto jump(WORD NNN) -> Instruction {
-        if (NNN > 0x0FFF) {
-            throw std::invalid_argument("NNN out of range: must be <= 0x0FFF");
-        }
-        return Instruction{static_cast<WORD>(0x1000 + NNN)};
-    }
-    static auto clear_screen() -> Instruction {
-        return Instruction{static_cast<WORD>(0x00EE)};
-    }
-    static auto set_index_register(WORD NNN) -> Instruction {
-        if (NNN > 0x0FFF) {
-            throw std::invalid_argument("NNN out of range: must be <= 0x0FFF");
-        }
-        return Instruction{static_cast<WORD>(0xA000 + NNN)};
-    }
-    static auto set_register(BYTE X, BYTE NN) -> Instruction {
-        if (X > 0x0F) {
-            throw std::invalid_argument("Register index X out of range: must be <= 0x0F");
-        }
-        return Instruction{static_cast<WORD>(0x6000 | (X << 8) | NN)};
-    }
-    static auto add_to_reg(BYTE X, BYTE NN) -> Instruction {
-        if (X > 0x0F) {
-            throw std::invalid_argument("Register index X out of range: must be <= 0x0F");
-        }
-        return Instruction{static_cast<WORD>(0x7000 | (X << 8) | NN)};
-    }
-    // 0xDXYN
-    static auto draw(BYTE X, BYTE Y, BYTE N) -> Instruction {
-        if (X > 0x0F) throw std::invalid_argument("Register index X out of range: must be <= 0x0F");
-        if (Y > 0x0F) throw std::invalid_argument("Register index Y out of range: must be <= 0x0F");
-        if (N > 0x0F) throw std::invalid_argument("N value out of range: must be <= 0x0F");
-        return Instruction{static_cast<WORD>(0xD000 | (X << 8) | (Y << 4) | N)};
-    }
+using ExecFn = void (*)(Chip8 &, WORD);
+using EncodeFn = WORD (*)(WORD X, WORD Y, WORD N, WORD NN, WORD NNN);
 
-    void write_to_mem(std::array<BYTE, 4096> &mem, WORD &addr) const {
-        if (addr + 1 >= mem.size()) {
-            throw std::out_of_range("Instruction write exceeds memory bounds");
-        }
-        mem[addr++] = static_cast<BYTE>((val >> 8) & 0xFF);
-        mem[addr++] = static_cast<BYTE>(val & 0xFF);
-    }
+enum class Op {
+    cls,
+    ret,
+    sys,
+    jmp,
+    ld_vx_byte,  // Load immediate into Vx
+    add_vx_byte, // Add immediate to Vx
+    ld_i_addr,   // Load address into I
+    drw          // Draw sprite at (Vx, Vy)
 };
 
-auto describe_instruction(const Instruction &instr) -> std::optional<std::string> {
-    switch (instr.op()) {
-    case 0x0:
-        if (instr.val == 0x00EE) {
-            return "Return from subroutine (RET)";
+struct OpInfo {
+    Op id;
+    WORD mask;
+    WORD pattern;
+    std::string_view fmt;
+    ExecFn exec;
+    EncodeFn encode;
+};
+
+// clang-format off
+inline auto exec_cls        (Chip8 &c, WORD  ) -> void { clear_display(c); }
+inline auto exec_ret        (Chip8 &c, WORD  ) -> void { c.PC = c.stack[--c.stack_pointer]; }
+inline auto exec_sys        (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_jmp        (Chip8 &c, WORD w) -> void { c.PC = field_NNN(w); }
+inline auto exec_ld_vx_byte (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = field_NN(w); }
+inline auto exec_add_vx_byte(Chip8 &c, WORD w) -> void { c.VX[field_X(w)] += field_NN(w); }
+inline auto exec_ld_i_addr  (Chip8 &c, WORD w) -> void { c.I = field_NNN(w); }
+inline auto exec_drw        (Chip8 &c, WORD w) -> void { draw_sprite(c, w); }
+
+inline auto encode_cls        (WORD,WORD,WORD,WORD,WORD      ) -> WORD { return 0x00E0; }
+inline auto encode_ret        (WORD,WORD,WORD,WORD,WORD      ) -> WORD { return 0x00EE; }
+inline auto encode_sys        (WORD,WORD,WORD,WORD,WORD NNN  ) -> WORD { return 0x0000 | (NNN & 0x0FFF); }
+inline auto encode_jmp        (WORD,WORD,WORD,WORD,WORD NNN  ) -> WORD { return 0x1000 | (NNN & 0x0FFF); }
+inline auto encode_ld_vx_byte (WORD X,WORD,WORD,WORD NN,WORD ) -> WORD { return 0x6000 | ((X & 0xF)<<8) | (NN & 0xFF); }
+inline auto encode_add_vx_byte(WORD X,WORD,WORD,WORD NN,WORD ) -> WORD { return 0x7000 | ((X & 0xF)<<8) | (NN & 0xFF); }
+inline auto encode_ld_i_addr  (WORD,WORD,WORD,WORD,WORD NNN  ) -> WORD { return 0xA000 | (NNN & 0x0FFF); }
+inline auto encode_drw        (WORD X,WORD Y,WORD N,WORD,WORD) -> WORD { return 0xD000 | ((X&0xF)<<8) | ((Y&0xF)<<4) | (N&0xF); }
+
+inline constexpr std::array<OpInfo, 8> OPS = {{
+    {Op::cls         , 0xFFFF, 0x00E0, "CLS"                          , exec_cls         , encode_cls         },
+    {Op::ret         , 0xFFFF, 0x00EE, "RET"                          , exec_ret         , encode_ret         },
+    {Op::sys         , 0xF000, 0x0000, "SYS #{NNN:03X}"               , exec_sys         , encode_sys         },
+    {Op::jmp         , 0xF000, 0x1000, "JMP  #{NNN:03X}"              , exec_jmp         , encode_jmp         },
+    {Op::ld_vx_byte  , 0xF000, 0x6000, "LDV V{X:X},#{NN:02X}"         , exec_ld_vx_byte  , encode_ld_vx_byte  },
+    {Op::add_vx_byte , 0xF000, 0x7000, "ADD V{X:X},#{NN:02X}"         , exec_add_vx_byte , encode_add_vx_byte },
+    {Op::ld_i_addr   , 0xF000, 0xA000, "LDI I,#{NNN:03X}"             , exec_ld_i_addr   , encode_ld_i_addr   },
+    {Op::drw         , 0xF000, 0xD000, "DRW V{X:X},V{Y:X},#{N:X}"     , exec_drw         , encode_drw         },
+}};
+
+auto find_op(Op id) -> const OpInfo * {
+    for (const auto &op : OPS)
+        if (op.id == id)
+            return &op;
+    return nullptr;
+}
+struct ProgramWriter {
+    Chip8& c;
+    WORD   addr;
+
+    explicit ProgramWriter(Chip8& chip, WORD start = 0x200)
+      : c(chip), addr(start) {}
+
+private:
+    void write_encoded(Op id, WORD X=0, WORD Y=0, WORD N=0, WORD NN=0, WORD NNN=0) {
+        auto* op = find_op(id);
+        if (!op) throw std::runtime_error("Unknown opcode ID");
+        WORD instr = op->encode(X, Y, N, NN, NNN);
+        c.mem[addr++] = BYTE(instr >> 8);
+        c.mem[addr++] = BYTE(instr & 0xFF);
+    }
+
+public:
+    void cls()                      { write_encoded(Op::cls); }
+    void ret()                      { write_encoded(Op::ret); }
+    void sys(WORD nnn)              { write_encoded(Op::sys, 0,0,0,0, nnn); }
+    void jmp(WORD nnn)              { write_encoded(Op::jmp,  0,0,0,0, nnn); }
+    void ld_vx_byte(BYTE x, BYTE v) { write_encoded(Op::ld_vx_byte, x,0,0,v); }
+    void add_vx_byte(BYTE x, BYTE v){ write_encoded(Op::add_vx_byte, x,0,0,v); }
+    void ld_i_addr(WORD nnn)        { write_encoded(Op::ld_i_addr, 0,0,0,0,nnn); }
+    void drw(BYTE x, BYTE y, BYTE n){ write_encoded(Op::drw, x,y,n); }
+
+    void set_addr(WORD new_addr)    { addr = new_addr; }
+};
+// clang-format on
+
+inline auto decode(WORD opcode) -> OpInfo const * {
+    for (auto const &op : OPS)
+        if ((opcode & op.mask) == op.pattern) return &op;
+    return nullptr;
+}
+
+inline auto human_readable(WORD opcode) -> std::optional<std::string_view> {
+    if (auto *info = decode(opcode)) {
+        switch (info->id) {
+        case Op::cls:
+            return "Clear the display";
+        case Op::ret:
+            return "Return from sub‑routine";
+        case Op::sys:
+            return "Execute system call at NNN (legacy/ignored)";
+        case Op::jmp:
+            return "Jump to address NNN";
+        case Op::ld_vx_byte:
+            return "Set Vx = NN";
+        case Op::add_vx_byte:
+            return "Add NN to Vx";
+        case Op::ld_i_addr:
+            return "Set I = NNN";
+        case Op::drw:
+            return "Draw sprite (8×N) at (Vx, Vy)";
+        default:
+            return std::nullopt;
         }
-        break;
-    case 0x1:
-        return std::format("Jump to address 0x{:03X}", instr.NNN());
-    case 0x6:
-        return std::format("Set V{:X} = 0x{:02X}", instr.X(), instr.NN());
-    case 0x7:
-        return std::format("Add 0x{:02X} to V{:X}", instr.NN(), instr.X());
-    case 0xA:
-        return std::format("Set index register I = 0x{:03X}", instr.NNN());
-    case 0xD:
-        return std::format("Draw sprite at (V{:X}, V{:X}) with height {}", instr.X(), instr.Y(), instr.N());
     }
     return std::nullopt;
 }
 
-auto dump_memory(Chip8 &c) -> void {
-    std::ofstream file("memory.bin", std::ios::binary);
-    file.write(
-        reinterpret_cast<const char *>(c.mem.data()),
-        static_cast<std::streamsize>(c.mem.size()));
+auto disassemble(WORD w) -> std::string {
+    auto *info = decode(w);
+    if (!info) return std::format("DW  0x{:04X}", w);
+
+    std::string s(info->fmt);
+    auto replace = [&](std::string_view key, std::string val) {
+        if (auto pos = s.find(key); pos != s.npos) s.replace(pos, key.size(), std::move(val));
+    };
+
+    replace("{X:X}", std::format("{:X}", field_X(w)));
+    replace("{Y:X}", std::format("{:X}", field_Y(w)));
+    replace("{N:X}", std::format("{:X}", field_N(w)));
+    replace("{NN:02X}", std::format("{:02X}", field_NN(w)));
+    replace("{NNN:03X}", std::format("{:03X}", field_NNN(w)));
+    return s;
 }
 
-auto clear_display(Chip8 &c) -> void {
-    for (auto &row : c.display) {
-        std::fill(row.begin(), row.end(), 0);
+inline auto fetch_and_execute(Chip8 &c) -> void {
+    WORD op = (c.mem[c.PC] << 8) | c.mem[c.PC + 1];
+    c.PC += 2;
+
+    if (auto info = decode(op)) {
+        info->exec(c, op);
+        return;
     }
+    PANIC_NOT_IMPLEMENTED(op);
 }
 
-/* Fetches instruction and increments PC by 2. */
-auto fetch_instruction(Chip8 &c) -> Instruction {
-    BYTE high = c.mem[c.PC++];
-    BYTE low = c.mem[c.PC++];
-    WORD opcode = (high << 8) | low;
-    LOG_INFO("Fetched opcode: {:#06x}", opcode);
-    return Instruction{opcode};
-}
+inline auto format_instruction_line(WORD pc, WORD instr) -> std::string {
+    constexpr int align_to = 20;
+    std::string disasm = CHIP8::disassemble(instr);
 
-auto execute_instruction(Chip8 &c, const Instruction &instr) -> void {
-    switch (instr.op()) {
-    case 0x0: { // {0x000E, 0x00EE, 0x0NNN}
-        std::cout << "Machine Code Routine\n";
-        if (instr.Y() == 0x0E) { // 0x000E
-            std::cout << "Clear the Display\n";
-            clear_display(c);
-        } else if (instr.Y() == 0xEE) { // 0x00EE
-            std::cout << "Return from Subroutine\n";
-            // pop from stack (and adjust for the upcoming PC increment)
-            c.PC = c.stack[c.stack_pointer] - 1;
-            --c.stack_pointer;
-        } else { // 0x0NNN
-            std::cout << "Call Machine Code Routine at Address ";
-            std::cout << " (Will not implement)\n";
-            PANIC_UNDEFINED(instr.val);
-        }
-        break;
+    std::string padded = disasm;
+    if (padded.size() < align_to) {
+        padded += std::string(align_to - padded.size(), ' ');
     }
-    case 0x1: { // 0x1NNN
-        WORD NNN = instr.NNN();
-        LOG_INFO("Jump to address {:#06x}", NNN);
-        if (NNN < 0x200) {
-            PANIC(std::format("Tried to jump to protected location {0}", NNN));
-        }
-        c.PC = instr.NNN();
-        break;
-    }
-    case 0x6: { // 0x6XNN
-        LOG_INFO("Set register");
-        c.VX[instr.X()] = instr.NN();
-        break;
-    }
-    case 0x7: { // 0x7XNN
-        LOG_INFO("Add Value to Register");
-        // TODO: What happens on overflow?
-        c.VX[instr.X()] += instr.NN();
-        break;
-    }
-    case 0xA: { // 0xANNN
-        LOG_INFO("Set I to Address");
-        c.I = instr.NNN();
-        break;
-    }
-    case 0xD: { // 0xDXYN
-        LOG_INFO("Draw");
-        BYTE VX = c.VX[instr.X()] % 64;
-        BYTE VY = c.VX[instr.Y()] % 32;
-        c.VX[0xF] = 0;
 
-        BYTE N = instr.N();
-        for (size_t row_idx = 0; row_idx < N; ++row_idx) {
-            if (VY + row_idx >= c.display.size()) break;
-            BYTE sprite_byte = c.mem[c.I + row_idx];
-            for (size_t col = 0; col < 8; ++col) {
-                PIXEL pixel = (sprite_byte >> (7 - col)) & 1;
-                PIXEL curr = c.display[VY + row_idx][VX + col];
-                if (curr && pixel) {
-                    c.VX[0xF] = 1;
-                }
-                c.display[VY + row_idx][VX + col] ^= pixel;
-            }
-        }
-        break;
-    }
-    default: {
-        PANIC_NOT_IMPLEMENTED(instr.val);
-        break;
-    }
+    if (auto human = human_readable(instr); human) {
+        return std::format("{:04X}: {}; {}", pc, padded, *human);
+    } else {
+        return std::format("{:04X}: {}", pc, disasm);
     }
 }
 
-auto fetch_and_execute(Chip8 &c) -> void {
-    execute_instruction(c, fetch_instruction(c));
+inline auto log_current_operation(Chip8 &c) -> void {
+    WORD w = (c.mem[c.PC] << 8) | c.mem[c.PC + 1];
+    LOG_INFO("{}", format_instruction_line(c.PC, w));
+}
+
+inline auto dump_memory(Chip8 &c) {
+    std::ofstream f("memory.bin", std::ios::binary);
+    f.write(reinterpret_cast<char const *>(c.mem.data()), c.mem.size());
 }
 
 auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD> {
@@ -231,10 +256,14 @@ auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD> {
     return instructions;
 }
 
-auto write_program_to_memory(Chip8 &c, std::vector<WORD> data) -> void {
+auto write_program_to_memory(Chip8 &c, const std::vector<WORD> data) -> void {
     WORD addr = 0x200;
-    for (const auto &word : data) {
-        Instruction{word}.write_to_mem(c.mem, addr);
+    for (WORD instr : data) {
+        if (addr + 1 >= c.mem.size()) {
+            PANIC("Instruction write exceeds memory bound!");
+        }
+        c.mem[addr++] = static_cast<BYTE>((instr >> 8) & 0xFF);
+        c.mem[addr++] = static_cast<BYTE>(instr & 0xFF);
     }
 }
 auto load_program_example_ibm(Chip8 &c) -> void {
@@ -246,14 +275,15 @@ auto load_program_example_corax_test_rom(Chip8 &c) -> void {
 }
 
 auto load_program_example_simple(Chip8 &c) -> void {
-    WORD addr = 0x200;
-    Instruction::clear_screen().write_to_mem(c.mem, addr);
-    Instruction::jump(0x212).write_to_mem(c.mem, addr);
+    ProgramWriter p(c);
 
-    addr = 0x212;
-    Instruction::set_index_register(0x050).write_to_mem(c.mem, addr);
-    Instruction::set_register(0xB, 0x37).write_to_mem(c.mem, addr);
-    Instruction::add_to_reg(0xC, 0x12).write_to_mem(c.mem, addr);
+    p.cls();
+    p.jmp(0x212);
+
+    p.set_addr(0x212);
+    p.ld_i_addr(0x050);
+    p.ld_vx_byte(0xB, 0x37);
+    p.add_vx_byte(0xC, 0x12);
 }
 
 auto initialise(Chip8 &c) -> void {
@@ -266,3 +296,4 @@ auto initialise(Chip8 &c) -> void {
     } // Font data
     c.PC = 0x200;
 }
+} // namespace CHIP8

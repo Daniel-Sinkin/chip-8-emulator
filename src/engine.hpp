@@ -53,7 +53,31 @@
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    global.renderer.imgui_io = ImGui::GetIO();
+
+    ImGuiIO &io = ImGui::GetIO();
+    global.renderer.imgui_io = io;
+
+    ImFontConfig font_cfg;
+    font_cfg.OversampleH = 3;
+    font_cfg.OversampleV = 3;
+
+    float dpi_scale = 1.0f;
+    float ddpi;
+    if (SDL_GetDisplayDPI(0, &ddpi, nullptr, nullptr) == 0 && ddpi > 0.0f) {
+        dpi_scale = ddpi / 96.0f;
+        if (dpi_scale > 1.5f) dpi_scale = 1.0f; // Cap it for Retina
+    }
+
+    constexpr float base_font_size = 11.0f;
+    ImFont *mono_font = io.Fonts->AddFontFromFileTTF(
+        "assets/fonts/MonaspaceKrypton-Regular.otf",
+        base_font_size * dpi_scale,
+        &font_cfg);
+
+    if (mono_font) {
+        io.FontDefault = mono_font;
+    }
+
     ImGui::StyleColorsDark();
 
     ImGui_ImplSDL2_InitForOpenGL(global.renderer.window, global.renderer.gl_context);

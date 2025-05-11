@@ -1,6 +1,5 @@
 #pragma once
 
-#include "global.hpp"
 #include <cstdlib>
 #include <format>
 #include <iostream>
