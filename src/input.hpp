@@ -37,9 +37,7 @@ inline auto handle_event(const SDL_Event &event) -> void {
         break;
 
     case SDL_MOUSEBUTTONDOWN:
-        if (event.button.button == SDL_BUTTON_LEFT) {
-            LOG_INFO("Left click at: " + to_string(global.input.mouse_pos));
-        } else if (event.button.button == SDL_BUTTON_RIGHT) {
+        if (event.button.button == SDL_BUTTON_RIGHT) {
             Position mouse_pos_ndc = window_normalized_to_ndc(global.input.mouse_pos, Constants::aspect_ratio);
             LOG_INFO("Right click NDC: " + to_string(mouse_pos_ndc));
         }

@@ -64,6 +64,7 @@
         "valarray": "cpp",
         "variant": "cpp",
         "algorithm": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "source_location": "cpp"
     }
 }

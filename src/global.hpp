@@ -45,6 +45,8 @@ struct InputState {
 
 struct ColorPalette {
     Color background = color_from_u8(15, 15, 21);
+    Color pixel_on = Color{1.0f, 1.0f, 1.0f};
+    Color pixel_off = Color{0.0f, 0.0f, 0.0f};
 };
 
 struct Global {
