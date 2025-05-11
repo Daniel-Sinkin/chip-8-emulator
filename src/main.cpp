@@ -37,6 +37,19 @@ using namespace std::chrono_literals;
 
 using CHIP8::chip8;
 
+auto example_dissamble() -> int {
+    try {
+        auto path1 = CHIP8::disassemble_rom_to_file("assets/IBM Logo.ch8");
+        std::cout << "Disassembled IBM Logo -> " << path1 << '\n';
+
+        auto path2 = CHIP8::disassemble_rom_to_file("assets/test_opcode.ch8");
+        std::cout << "Disassembled test_opcode -> " << path2 << '\n';
+        return 0;
+    } catch (const std::exception &e) {
+        std::cerr << "Error during disassembly: " << e.what() << '\n';
+        return 1;
+    }
+}
 auto main(int argc, char **argv) -> int {
     CHIP8::initialise(chip8);
     CHIP8::load_program_example_ibm(chip8);

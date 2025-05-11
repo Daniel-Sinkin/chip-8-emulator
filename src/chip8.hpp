@@ -545,4 +545,47 @@ inline auto step(Chip8 &c) -> void {
     step(c, Constants::n_iter_per_frame);
 }
 
+/**
+ * Disassemble a binary ROM and write a side-by-side text listing.
+ *
+ * The function always assumes that the first byte of the file will be loaded
+ * at CHIP-8 address 0x200 and increments the program counter accordingly.
+ *
+ * @param rom_path   Path to the *.ch8* file.
+ * @param out_path   (optional) Explicit output location.
+ *                   If omitted the function writes a file with the same base
+ *                   name and extension “.ch8_code” next to the input ROM.
+ * @return           The path of the created listing file.
+ */
+inline auto disassemble_rom_to_file(
+    const std::filesystem::path &rom_path,
+    std::optional<std::filesystem::path> out_path = std::nullopt)
+    -> std::filesystem::path {
+    // Load and validate ROM (re-uses utility already in your code base).
+    const std::vector<WORD> instructions = load_ch8(rom_path);
+
+    // Derive default output file name if the caller did not provide one.
+    if (!out_path) {
+        out_path = rom_path; // copy
+        out_path->replace_extension(
+            out_path->extension().string() + "_code"); //  *.ch8_code
+    }
+
+    std::ofstream ofs(*out_path);
+    if (!ofs) {
+        throw std::runtime_error(
+            "Failed to create listing file: " + out_path->string());
+    }
+
+    // Iterate through the ROM, starting at PC = 0x200.
+    WORD pc = 0x200;
+    for (const WORD instr : instructions) {
+        ofs << format_instruction_line(pc, instr) << '\n';
+        pc += 2; // each opcode = 2 bytes
+    }
+
+    ofs.flush();
+    return *out_path;
+}
+
 } // namespace CHIP8
