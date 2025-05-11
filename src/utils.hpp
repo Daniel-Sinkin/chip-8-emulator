@@ -55,3 +55,10 @@ format_duration(std::chrono::duration<float> duration) -> std::string {
         hrs, mins, secs, millis);
     return std::string(buffer);
 }
+
+[[nodiscard]] inline auto get_random_byte() -> BYTE {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<int> dist(0, 255);
+    return static_cast<BYTE>(dist(gen));
+}

@@ -86,6 +86,7 @@ inline auto display_grid() -> void {
         ImGui::Text("Stack Pointer: %d", chip8.stack_pointer);
         ImGui::Text("Delay Timer: %d", chip8.delay_timer);
         ImGui::Text("Sound Timer: %d", chip8.sound_timer);
+        ImGui::Text("Iteration Counter: %d", chip8.iteration_counter);
 
         if (ImGui::BeginTable("VX Registers", 8)) {
             for (int i = 0; i < 16; ++i) {
