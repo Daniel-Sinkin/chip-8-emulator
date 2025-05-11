@@ -27,8 +27,9 @@ struct Chip8 {
     std::array<WORD, 32> stack = {};
     BYTE delay_timer = 0;
     BYTE sound_timer = 0;
-    std::chrono::steady_clock::time_point timer_update = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point last_timer_update;
     std::array<BYTE, 16> VX{};
+    int iteration_counter = 0;
 };
 inline Chip8 chip8;
 
@@ -62,14 +63,41 @@ using ExecFn = void (*)(Chip8 &, WORD);
 using EncodeFn = WORD (*)(WORD X, WORD Y, WORD N, WORD NN, WORD NNN);
 
 enum class Op {
-    cls,
-    ret,
-    sys,
-    jmp,
-    ld_vx_byte,  // Load immediate into Vx
-    add_vx_byte, // Add immediate to Vx
-    ld_i_addr,   // Load address into I
-    drw          // Draw sprite at (Vx, Vy)
+    sys,                  // ✅ Deprecated, not using
+    cls,                  // ✅ Clear display
+    ret,                  // ❌ Return from Subroutine
+    jmp,                  // ✅ Jumpt to Address
+    call_subroutine,      // ❌ Call subroutine at nnn
+    skip_eq,              // ❌
+    skip_not_eq,          // ❌
+    skip_eq_register,     // ❌
+    set_register,         // ❌
+    add_to_register,      // ❌
+    copy_register,        // ❌
+    math_or,              // ❌
+    math_and,             // ❌
+    math_xor,             // ❌
+    math_add,             // ❌
+    math_sub,             // ❌
+    shr,                  // ❌
+    subn,                 // ❌
+    shl,                  // ❌
+    skip_not_eq_register, // ❌
+    set_i,                // ❌
+    jmp_offset,           // ❌
+    get_random,           // ❌
+    drw,                  // ✅ Draw sprite at (Vx, Vy)
+    skip_pressed,         // ❌
+    skip_not_pressed,     // ❌
+    load_delay,           // ❌
+    wait_key,             // ❌
+    set_delay,            // ✅ Set Delay Timer
+    set_sound,            // ❌
+    add_i,                // ❌
+    set_i_sprite,         // ❌
+    store_bcd,            // ❌
+    dump_registers,       // ❌
+    fill_registers,       // ❌
 };
 
 struct OpInfo {
@@ -82,68 +110,180 @@ struct OpInfo {
 };
 
 // clang-format off
-inline auto exec_cls        (Chip8 &c, WORD  ) -> void { clear_display(c); }
-inline auto exec_ret        (Chip8 &c, WORD  ) -> void { c.PC = c.stack[--c.stack_pointer]; }
-inline auto exec_sys        (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_jmp        (Chip8 &c, WORD w) -> void { c.PC = field_NNN(w); }
-inline auto exec_ld_vx_byte (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = field_NN(w); }
-inline auto exec_add_vx_byte(Chip8 &c, WORD w) -> void { c.VX[field_X(w)] += field_NN(w); }
-inline auto exec_ld_i_addr  (Chip8 &c, WORD w) -> void { c.I = field_NNN(w); }
-inline auto exec_drw        (Chip8 &c, WORD w) -> void { draw_sprite(c, w); }
+inline auto exec_sys                 (Chip8 &c, WORD w) -> void { PANIC_UNDEFINED(w); }
+inline auto exec_cls                 (Chip8 &c, WORD  ) -> void { clear_display(c); }
+inline auto exec_ret                 (Chip8 &c, WORD  ) -> void { c.PC = c.stack[--c.stack_pointer]; }
+inline auto exec_jmp                 (Chip8 &c, WORD w) -> void { c.PC = field_NNN(w); }
+inline auto exec_call_subroutine     (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_skip_eq             (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_skip_not_eq         (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_skip_eq_register    (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_set_register        (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_add_to_register     (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_copy_register       (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_math_or             (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_math_and            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_math_xor            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_math_add            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_math_sub            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_shr                 (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_subn                (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_shl                 (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_skip_not_eq_register(Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_set_i               (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_jmp_offset          (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_get_random          (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_drw                 (Chip8 &c, WORD w) -> void { draw_sprite(c, w); }
+inline auto exec_skip_pressed        (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_skip_not_pressed    (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_load_delay          (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_wait_key            (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_set_delay           (Chip8 &c, WORD w) -> void { c.delay_timer = c.VX[field_X(w)]; }
+inline auto exec_set_sound           (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_add_i               (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_set_i_sprite        (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_store_bcd           (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_dump_registers      (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_fill_registers      (Chip8&, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
 
-inline auto encode_cls        (WORD,WORD,WORD,WORD,WORD      ) -> WORD { return 0x00E0; }
-inline auto encode_ret        (WORD,WORD,WORD,WORD,WORD      ) -> WORD { return 0x00EE; }
-inline auto encode_sys        (WORD,WORD,WORD,WORD,WORD NNN  ) -> WORD { return 0x0000 | (NNN & 0x0FFF); }
-inline auto encode_jmp        (WORD,WORD,WORD,WORD,WORD NNN  ) -> WORD { return 0x1000 | (NNN & 0x0FFF); }
-inline auto encode_ld_vx_byte (WORD X,WORD,WORD,WORD NN,WORD ) -> WORD { return 0x6000 | ((X & 0xF)<<8) | (NN & 0xFF); }
-inline auto encode_add_vx_byte(WORD X,WORD,WORD,WORD NN,WORD ) -> WORD { return 0x7000 | ((X & 0xF)<<8) | (NN & 0xFF); }
-inline auto encode_ld_i_addr  (WORD,WORD,WORD,WORD,WORD NNN  ) -> WORD { return 0xA000 | (NNN & 0x0FFF); }
-inline auto encode_drw        (WORD X,WORD Y,WORD N,WORD,WORD) -> WORD { return 0xD000 | ((X&0xF)<<8) | ((Y&0xF)<<4) | (N&0xF); }
+inline auto encode_sys                 (WORD,WORD,WORD,WORD,WORD NNN     ) -> WORD { return 0x0000 | (NNN & 0x0FFF); }
+inline auto encode_cls                 (WORD,WORD,WORD,WORD,WORD         ) -> WORD { return 0x00E0; }
+inline auto encode_ret                 (WORD,WORD,WORD,WORD,WORD         ) -> WORD { return 0x00EE; }
+inline auto encode_jmp                 (WORD,WORD,WORD,WORD,WORD NNN     ) -> WORD { return 0x1000 | (NNN & 0x0FFF); }
+inline auto encode_call_subroutine     (WORD, WORD, WORD, WORD, WORD NNN ) -> WORD { return 0x2000 | (NNN & 0x0FFF); }
+inline auto encode_skip_eq             (WORD X, WORD, WORD, WORD NN, WORD) -> WORD { return 0x3000 | ((X & 0xF) << 8) | (NN & 0xFF); }
+inline auto encode_skip_not_eq         (WORD X, WORD, WORD, WORD NN, WORD) -> WORD { return 0x4000 | ((X & 0xF) << 8) | (NN & 0xFF); }
+inline auto encode_skip_eq_register    (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x5000 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_set_register        (WORD X, WORD, WORD, WORD NN, WORD) -> WORD { return 0x6000 | ((X & 0xF) << 8) | (NN & 0xFF); }
+inline auto encode_add_to_register     (WORD X, WORD, WORD, WORD NN, WORD) -> WORD { return 0x7000 | ((X & 0xF) << 8) | (NN & 0xFF); }
+inline auto encode_copy_register       (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x8000 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_math_or             (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x8001 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_math_and            (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x8002 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_math_xor            (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x8003 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_math_add            (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x8004 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_math_sub            (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x8005 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_shr                 (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x8006 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_subn                (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x8007 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_shl                 (WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x800E | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_skip_not_eq_register(WORD X, WORD Y, WORD, WORD, WORD ) -> WORD { return 0x9000 | ((X & 0xF) << 8) | ((Y & 0xF) << 4); }
+inline auto encode_set_i               (WORD, WORD, WORD, WORD, WORD NNN ) -> WORD { return 0xA000 | (NNN & 0x0FFF); }
+inline auto encode_jmp_offset          (WORD, WORD, WORD, WORD, WORD NNN ) -> WORD { return 0xB000 | (NNN & 0x0FFF); }
+inline auto encode_get_random          (WORD X, WORD, WORD, WORD NN, WORD) -> WORD { return 0xC000 | ((X & 0xF) << 8) | (NN & 0xFF); }
+inline auto encode_drw                 (WORD X,WORD Y,WORD N,WORD,WORD   ) -> WORD { return 0xD000 | ((X&0xF)<<8) | ((Y&0xF)<<4) | (N&0xF); }
+inline auto encode_skip_pressed        (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xE09E | ((X & 0xF) << 8); }
+inline auto encode_skip_not_pressed    (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xE0A1 | ((X & 0xF) << 8); }
+inline auto encode_load_delay          (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF007 | ((X & 0xF) << 8); }
+inline auto encode_set_delay           (WORD X,WORD,WORD,WORD,WORD       ) -> WORD { return 0xF015 | ((X & 0xF) << 8); }
+inline auto encode_wait_key            (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF00A | ((X & 0xF) << 8); }
+inline auto encode_set_sound           (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF018 | ((X & 0xF) << 8); }
+inline auto encode_add_i               (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF01E | ((X & 0xF) << 8); }
+inline auto encode_set_i_sprite        (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF029 | ((X & 0xF) << 8); }
+inline auto encode_store_bcd           (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF033 | ((X & 0xF) << 8); }
+inline auto encode_dump_registers      (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF055 | ((X & 0xF) << 8); }
+inline auto encode_fill_registers      (WORD X, WORD, WORD, WORD, WORD   ) -> WORD { return 0xF065 | ((X & 0xF) << 8); }
 
-inline constexpr std::array<OpInfo, 8> OPS = {{
-    {Op::cls         , 0xFFFF, 0x00E0, "CLS"                          , exec_cls         , encode_cls         },
-    {Op::ret         , 0xFFFF, 0x00EE, "RET"                          , exec_ret         , encode_ret         },
-    {Op::sys         , 0xF000, 0x0000, "SYS #{NNN:03X}"               , exec_sys         , encode_sys         },
-    {Op::jmp         , 0xF000, 0x1000, "JMP  #{NNN:03X}"              , exec_jmp         , encode_jmp         },
-    {Op::ld_vx_byte  , 0xF000, 0x6000, "LDV V{X:X},#{NN:02X}"         , exec_ld_vx_byte  , encode_ld_vx_byte  },
-    {Op::add_vx_byte , 0xF000, 0x7000, "ADD V{X:X},#{NN:02X}"         , exec_add_vx_byte , encode_add_vx_byte },
-    {Op::ld_i_addr   , 0xF000, 0xA000, "LDI I,#{NNN:03X}"             , exec_ld_i_addr   , encode_ld_i_addr   },
-    {Op::drw         , 0xF000, 0xD000, "DRW V{X:X},V{Y:X},#{N:X}"     , exec_drw         , encode_drw         },
+inline const std::array<OpInfo, 35> OPS = {{
+    {Op::sys               , 0xF000, 0x0000, "SYS #{NNN:03X}"          , exec_sys                   , encode_sys},
+    {Op::cls               , 0xFFFF, 0x00E0, "CLS"                     , exec_cls                   , encode_cls},
+    {Op::ret               , 0xFFFF, 0x00EE, "RET"                     , exec_ret                   , encode_ret},
+    {Op::jmp               , 0xF000, 0x1000, "JMP #{NNN:03X}"          , exec_jmp                   , encode_jmp},
+    {Op::call_subroutine   , 0xF000, 0x2000, "CALL #{NNN:03X}"         , exec_call_subroutine       , encode_call_subroutine},
+    {Op::skip_eq           , 0xF000, 0x3000, "SE V{X:X},#{NN:02X}"     , exec_skip_eq               , encode_skip_eq},
+    {Op::skip_not_eq       , 0xF000, 0x4000, "SNE V{X:X},#{NN:02X}"    , exec_skip_not_eq           , encode_skip_not_eq},
+    {Op::skip_eq_register  , 0xF00F, 0x5000, "SE V{X:X},V{Y:X}"        , exec_skip_eq_register      , encode_skip_eq_register},
+    {Op::set_register      , 0xF000, 0x6000, "LD V{X:X},#{NN:02X}"     , exec_set_register          , encode_set_register},
+    {Op::add_to_register   , 0xF000, 0x7000, "ADD V{X:X},#{NN:02X}"    , exec_add_to_register       , encode_add_to_register},
+    {Op::copy_register     , 0xF00F, 0x8000, "LD V{X:X},V{Y:X}"        , exec_copy_register         , encode_copy_register},
+    {Op::math_or           , 0xF00F, 0x8001, "OR  V{X:X},V{Y:X}"       , exec_math_or               , encode_math_or},
+    {Op::math_and          , 0xF00F, 0x8002, "AND V{X:X},V{Y:X}"       , exec_math_and              , encode_math_and},
+    {Op::math_xor          , 0xF00F, 0x8003, "XOR V{X:X},V{Y:X}"       , exec_math_xor              , encode_math_xor},
+    {Op::math_add          , 0xF00F, 0x8004, "ADD V{X:X},V{Y:X}"       , exec_math_add              , encode_math_add},
+    {Op::math_sub          , 0xF00F, 0x8005, "SUB V{X:X},V{Y:X}"       , exec_math_sub              , encode_math_sub},
+    {Op::shr               , 0xF00F, 0x8006, "SHR V{X:X}"              , exec_shr                   , encode_shr},
+    {Op::subn              , 0xF00F, 0x8007, "SUBN V{X:X},V{Y:X}"      , exec_subn                  , encode_subn},
+    {Op::shl               , 0xF00F, 0x800E, "SHL V{X:X}"              , exec_shl                   , encode_shl},
+    {Op::skip_not_eq_register       , 0xF00F, 0x9000, "SNE V{X:X},V{Y:X}"       , exec_skip_not_eq_register  , encode_skip_not_eq_register},
+    {Op::set_i             , 0xF000, 0xA000, "LD  I,#{NNN:03X}"        , exec_set_i                 , encode_set_i},
+    {Op::jmp_offset        , 0xF000, 0xB000, "JMP V0,#{NNN:03X}"       , exec_jmp_offset            , encode_jmp_offset},
+    {Op::get_random        , 0xF000, 0xC000, "RND V{X:X},#{NN:02X}"    , exec_get_random            , encode_get_random},
+    {Op::drw               , 0xF000, 0xD000, "DRW V{X:X},V{Y:X},#{N:X}", exec_drw                   , encode_drw},
+    {Op::skip_pressed      , 0xF0FF, 0xE09E, "SKP V{X:X}"              , exec_skip_pressed          , encode_skip_pressed},
+    {Op::skip_not_pressed  , 0xF0FF, 0xE0A1, "SKNP V{X:X}"             , exec_skip_not_pressed      , encode_skip_not_pressed},
+    {Op::load_delay        , 0xF0FF, 0xF007, "LD  V{X:X},DT"           , exec_load_delay            , encode_load_delay},
+    {Op::wait_key          , 0xF0FF, 0xF00A, "LD  V{X:X},K"            , exec_wait_key              , encode_wait_key},
+    {Op::set_delay         , 0xF0FF, 0xF015, "SDT V{X:X}"              , exec_set_delay             , encode_set_delay},
+    {Op::set_sound         , 0xF0FF, 0xF018, "LD  ST,V{X:X}"           , exec_set_sound             , encode_set_sound},
+    {Op::add_i             , 0xF0FF, 0xF01E, "ADD I,V{X:X}"            , exec_add_i                 , encode_add_i},
+    {Op::set_i_sprite      , 0xF0FF, 0xF029, "LD  F,V{X:X}"            , exec_set_i_sprite          , encode_set_i_sprite},
+    {Op::store_bcd         , 0xF0FF, 0xF033, "LD  B,V{X:X}"            , exec_store_bcd             , encode_store_bcd},
+    {Op::dump_registers    , 0xF0FF, 0xF055, "LD [I],V{X:X}"           , exec_dump_registers        , encode_dump_registers},
+    {Op::fill_registers    , 0xF0FF, 0xF065, "LD V{X:X},[I]"           , exec_fill_registers        , encode_fill_registers},
 }};
-
 auto find_op(Op id) -> const OpInfo * {
     for (const auto &op : OPS)
         if (op.id == id)
             return &op;
     return nullptr;
 }
-struct ProgramWriter {
-    Chip8& c;
-    WORD   addr;
 
+class ProgramWriter {
+public:
+    WORD addr;
+
+    void set_addr(WORD new_addr) { addr = new_addr; }
     explicit ProgramWriter(Chip8& chip, WORD start = 0x200)
-      : c(chip), addr(start) {}
+        : c(chip), addr(start) {}
+
+    // TODO(CLEANUP): Fix Alignment
+    void sys          (WORD nnn)                 { write_encoded(Op::sys,                 0,0,0,0, nnn); }
+    void cls          ()                         { write_encoded(Op::cls); }
+    void ret          ()                         { write_encoded(Op::ret); }                                // 00EE
+    void jmp          (WORD nnn)                 { write_encoded(Op::jmp,                 0,0,0,0, nnn); }   // 1NNN
+    void call         (WORD nnn)                 { write_encoded(Op::call_subroutine,     0,0,0,0, nnn); }   // 2NNN
+    void jmp_offset   (WORD nnn)                 { write_encoded(Op::jmp_offset,          0,0,0,0, nnn); }   // BNNN
+    void skip_eq            (BYTE x, BYTE kk)    { write_encoded(Op::skip_eq,             x,0,0, kk); }      // 3xkk
+    void skip_not_eq        (BYTE x, BYTE kk)    { write_encoded(Op::skip_not_eq,         x,0,0, kk); }      // 4xkk
+    void skip_eq_reg        (BYTE x, BYTE y)     { write_encoded(Op::skip_eq_register,    x,y); }            // 5xy0
+    void skip_not_eq_reg    (BYTE x, BYTE y)     { write_encoded(Op::skip_not_eq_register,x,y); }            // 9xy0
+    void skip_pressed       (BYTE x)             { write_encoded(Op::skip_pressed,        x); }              // Ex9E
+    void skip_not_pressed   (BYTE x)             { write_encoded(Op::skip_not_pressed,    x); }              // ExA1
+    void ld_vx_byte   (BYTE x, BYTE kk)          { write_encoded(Op::set_register,        x,0,0, kk); }      // 6xkk
+    void add_vx_byte  (BYTE x, BYTE kk)          { write_encoded(Op::add_to_register,     x,0,0, kk); }      // 7xkk
+    void ld_vx_vy     (BYTE x, BYTE y)           { write_encoded(Op::copy_register,       x,y); }            // 8xy0
+    void or_vx_vy     (BYTE x, BYTE y)           { write_encoded(Op::math_or,             x,y); }            // 8xy1
+    void and_vx_vy    (BYTE x, BYTE y)           { write_encoded(Op::math_and,            x,y); }            // 8xy2
+    void xor_vx_vy    (BYTE x, BYTE y)           { write_encoded(Op::math_xor,            x,y); }            // 8xy3
+    void add_vx_vy    (BYTE x, BYTE y)           { write_encoded(Op::math_add,            x,y); }            // 8xy4
+    void sub_vx_vy    (BYTE x, BYTE y)           { write_encoded(Op::math_sub,            x,y); }            // 8xy5
+    void shr_vx       (BYTE x, BYTE y = 0)       { write_encoded(Op::shr,                 x,y); }            // 8xy6
+    void subn_vx_vy   (BYTE x, BYTE y)           { write_encoded(Op::subn,                x,y); }            // 8xy7
+    void shl_vx       (BYTE x, BYTE y = 0)       { write_encoded(Op::shl,                 x,y); }            // 8xyE
+    void rnd_vx_byte  (BYTE x, BYTE kk)          { write_encoded(Op::get_random,          x,0,0, kk); }      // Cxkk
+    void drw          (BYTE x, BYTE y, BYTE n)   { write_encoded(Op::drw,                 x,y,n); }          // Dxyn
+    void ld_i_addr    (WORD nnn)                 { write_encoded(Op::set_i,               0,0,0,0, nnn); }   // ANNN
+    void add_i_vx     (BYTE x)                   { write_encoded(Op::add_i,               x); }              // Fx1E
+    void ld_f_vx      (BYTE x)                   { write_encoded(Op::set_i_sprite,        x); }              // Fx29
+    void bcd_vx       (BYTE x)                   { write_encoded(Op::store_bcd,           x); }              // Fx33
+    void dump_vx      (BYTE x)                   { write_encoded(Op::dump_registers,      x); }              // Fx55
+    void fill_vx      (BYTE x)                   { write_encoded(Op::fill_registers,      x); }              // Fx65
+    void ld_vx_dt     (BYTE x)                   { write_encoded(Op::load_delay,          x); }              // Fx07
+    void ld_vx_k      (BYTE x)                   { write_encoded(Op::wait_key,            x); }              // Fx0A
+    void set_delay    (BYTE x)                   { write_encoded(Op::set_delay,           x); }              // Fx15
+    void set_sound    (BYTE x)                   { write_encoded(Op::set_sound,           x); }              // Fx18
 
 private:
-    void write_encoded(Op id, WORD X=0, WORD Y=0, WORD N=0, WORD NN=0, WORD NNN=0) {
-        auto* op = find_op(id);
+    Chip8& c;
+
+    // central helper that does the actual write
+    void write_encoded(Op id, WORD X = 0, WORD Y = 0,
+                       WORD N = 0, WORD NN = 0, WORD NNN = 0)
+    {
+        const auto* op = find_op(id);
         if (!op) throw std::runtime_error("Unknown opcode ID");
         WORD instr = op->encode(X, Y, N, NN, NNN);
         c.mem[addr++] = BYTE(instr >> 8);
         c.mem[addr++] = BYTE(instr & 0xFF);
     }
-
-public:
-    void cls()                      { write_encoded(Op::cls); }
-    void ret()                      { write_encoded(Op::ret); }
-    void sys(WORD nnn)              { write_encoded(Op::sys, 0,0,0,0, nnn); }
-    void jmp(WORD nnn)              { write_encoded(Op::jmp,  0,0,0,0, nnn); }
-    void ld_vx_byte(BYTE x, BYTE v) { write_encoded(Op::ld_vx_byte, x,0,0,v); }
-    void add_vx_byte(BYTE x, BYTE v){ write_encoded(Op::add_vx_byte, x,0,0,v); }
-    void ld_i_addr(WORD nnn)        { write_encoded(Op::ld_i_addr, 0,0,0,0,nnn); }
-    void drw(BYTE x, BYTE y, BYTE n){ write_encoded(Op::drw, x,y,n); }
-
-    void set_addr(WORD new_addr)    { addr = new_addr; }
 };
 // clang-format on
 
@@ -156,22 +296,90 @@ inline auto decode(WORD opcode) -> OpInfo const * {
 inline auto human_readable(WORD opcode) -> std::optional<std::string_view> {
     if (auto *info = decode(opcode)) {
         switch (info->id) {
+        // ── system / flow control ───────────────────────────────────────────
+        case Op::sys:
+            return "Execute system call at NNN (legacy)";
         case Op::cls:
             return "Clear the display";
         case Op::ret:
-            return "Return from sub‑routine";
-        case Op::sys:
-            return "Execute system call at NNN (legacy/ignored)";
+            return "Return from sub-routine";
         case Op::jmp:
             return "Jump to address NNN";
-        case Op::ld_vx_byte:
-            return "Set Vx = NN";
-        case Op::add_vx_byte:
-            return "Add NN to Vx";
-        case Op::ld_i_addr:
-            return "Set I = NNN";
+        case Op::call_subroutine:
+            return "Call sub-routine at NNN";
+        case Op::jmp_offset:
+            return "Jump to V0 + NNN";
+
+        // ── conditional skips ──────────────────────────────────────────────
+        case Op::skip_eq:
+            return "Skip next instr. if Vx == NN";
+        case Op::skip_not_eq:
+            return "Skip next instr. if Vx != NN";
+        case Op::skip_eq_register:
+            return "Skip next instr. if Vx == Vy";
+        case Op::skip_not_eq_register:
+            return "Skip next instr. if Vx != Vy";
+        case Op::skip_pressed:
+            return "Skip next instr. if key Vx pressed";
+        case Op::skip_not_pressed:
+            return "Skip next instr. if key Vx not pressed";
+
+        // ── register / immediate ───────────────────────────────────────────
+        case Op::set_register:
+            return "Vx ← NN";
+        case Op::add_to_register:
+            return "Vx += NN";
+        case Op::get_random:
+            return "Vx ← (rand & NN)";
+
+        // ── register / register math (8xy*) ────────────────────────────────
+        case Op::copy_register:
+            return "Vx ← Vy";
+        case Op::math_or:
+            return "Vx |= Vy";
+        case Op::math_and:
+            return "Vx &= Vy";
+        case Op::math_xor:
+            return "Vx ^= Vy";
+        case Op::math_add:
+            return "Vx += Vy   (VF = carry)";
+        case Op::math_sub:
+            return "Vx -= Vy   (VF = ¬borrow)";
+        case Op::shr:
+            return "Vx >>= 1   (VF = LSB before shift)";
+        case Op::subn:
+            return "Vx = Vy-Vx (VF = ¬borrow)";
+        case Op::shl:
+            return "Vx <<= 1   (VF = MSB before shift)";
+
+        // ── index register / memory ────────────────────────────────────────
+        case Op::set_i:
+            return "I  ← NNN";
+        case Op::add_i:
+            return "I += Vx";
+        case Op::set_i_sprite:
+            return "I  ← sprite addr for digit Vx";
+        case Op::store_bcd:
+            return "Store BCD of Vx at I..I+2";
+        case Op::dump_registers:
+            return "Store V0..Vx to memory @ I";
+        case Op::fill_registers:
+            return "Load  V0..Vx from memory @ I";
+
+        // ── drawing & random ───────────────────────────────────────────────
         case Op::drw:
-            return "Draw sprite (8×N) at (Vx, Vy)";
+            return "Draw 8×N sprite at (Vx, Vy)";
+
+        // ── timers & keyboard ──────────────────────────────────────────────
+        case Op::load_delay:
+            return "Vx ← delay-timer value";
+        case Op::wait_key:
+            return "Wait for key press, store in Vx";
+        case Op::set_delay:
+            return "Delay-timer ← Vx";
+        case Op::set_sound:
+            return "Sound-timer ← Vx";
+
         default:
             return std::nullopt;
         }
@@ -179,7 +387,7 @@ inline auto human_readable(WORD opcode) -> std::optional<std::string_view> {
     return std::nullopt;
 }
 
-auto disassemble(WORD w) -> std::string {
+inline auto disassemble(WORD w) -> std::string {
     auto *info = decode(w);
     if (!info) return std::format("DW  0x{:04X}", w);
 
@@ -197,6 +405,7 @@ auto disassemble(WORD w) -> std::string {
 }
 
 inline auto fetch_and_execute(Chip8 &c) -> void {
+    c.iteration_counter += 1;
     WORD op = (c.mem[c.PC] << 8) | c.mem[c.PC + 1];
     c.PC += 2;
 
@@ -223,7 +432,7 @@ inline auto format_instruction_line(WORD pc, WORD instr) -> std::string {
     }
 }
 
-inline auto log_current_operation(Chip8 &c) -> void {
+inline auto log_current_operation(const Chip8 &c) -> void {
     WORD w = (c.mem[c.PC] << 8) | c.mem[c.PC + 1];
     LOG_INFO("{}", format_instruction_line(c.PC, w));
 }
@@ -233,7 +442,7 @@ inline auto dump_memory(Chip8 &c) {
     f.write(reinterpret_cast<char const *>(c.mem.data()), c.mem.size());
 }
 
-auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD> {
+inline auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD> {
     std::ifstream file(filepath, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Failed to open ROM file: " + filepath.string());
@@ -256,7 +465,7 @@ auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD> {
     return instructions;
 }
 
-auto write_program_to_memory(Chip8 &c, const std::vector<WORD> data) -> void {
+inline auto write_program_to_memory(Chip8 &c, const std::vector<WORD> data) -> void {
     WORD addr = 0x200;
     for (WORD instr : data) {
         if (addr + 1 >= c.mem.size()) {
@@ -266,10 +475,12 @@ auto write_program_to_memory(Chip8 &c, const std::vector<WORD> data) -> void {
         c.mem[addr++] = static_cast<BYTE>(instr & 0xFF);
     }
 }
-auto load_program_example_ibm(Chip8 &c) -> void {
+
+inline auto load_program_example_ibm(Chip8 &c) -> void {
     write_program_to_memory(c, load_ch8("assets/IBM Logo.ch8"));
 }
-auto load_program_example_corax_test_rom(Chip8 &c) -> void {
+
+inline auto load_program_example_corax_test_rom(Chip8 &c) -> void {
     // https://github.com/corax89/chip8-test-rom
     write_program_to_memory(c, load_ch8("assets/IBM Logo.ch8"));
 }
@@ -286,7 +497,7 @@ auto load_program_example_simple(Chip8 &c) -> void {
     p.add_vx_byte(0xC, 0x12);
 }
 
-auto initialise(Chip8 &c) -> void {
+inline auto initialise(Chip8 &c) -> void {
     { // Font data
         size_t loc = 0x050;
         for (auto &font : Constants::fontdata) {
@@ -295,5 +506,34 @@ auto initialise(Chip8 &c) -> void {
         }
     } // Font data
     c.PC = 0x200;
+    c.last_timer_update = std::chrono::steady_clock::now();
 }
+
+inline auto update_timers(Chip8 &c) -> void {
+    using namespace std::chrono;
+
+    auto current_time = steady_clock::now();
+    auto time_passed = current_time - c.last_timer_update;
+
+    auto ticks = time_passed / Constants::timer_update_delay;
+    if (ticks > 0) {
+        auto n = ticks; // int64_t or duration
+        c.delay_timer = (c.delay_timer > n) ? c.delay_timer - n : 0;
+        c.sound_timer = (c.sound_timer > n) ? c.sound_timer - n : 0;
+
+        c.last_timer_update += Constants::timer_update_delay * n;
+    }
+}
+
+/* Batches some predefined number of iterations and updates timer once */
+inline auto step(Chip8 &c, size_t num_iterations) -> void {
+    update_timers(c);
+    for (size_t i = 0; i < num_iterations; ++i) {
+        fetch_and_execute(c);
+    }
+}
+inline auto step(Chip8 &c) -> void {
+    step(c, Constants::n_iter_per_frame);
+}
+
 } // namespace CHIP8

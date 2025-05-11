@@ -11,6 +11,7 @@
 
 // Standard library
 #include <array>
+#include <assert.h>
 #include <bitset>
 #include <chrono>
 #include <cstdint>
@@ -23,6 +24,7 @@ using namespace std::chrono_literals;
 
 // Project headers
 #include "chip8.hpp"
+#include "chip8_tests.hpp"
 #include "constants.hpp"
 #include "engine.hpp"
 #include "gl.hpp"
@@ -36,10 +38,14 @@ using namespace std::chrono_literals;
 using CHIP8::chip8;
 
 auto main(int argc, char **argv) -> int {
+    CHIP8_TESTS::opcode_roundtrip();
+    return EXIT_SUCCESS;
     CHIP8::initialise(chip8);
     CHIP8::load_program_example_ibm(chip8);
     auto pw = CHIP8::ProgramWriter(chip8, 0x228);
-    pw.jmp(0x200);
+    pw.ld_vx_byte(0x5, static_cast<BYTE>(255));
+    pw.set_delay(0x5);
+    pw.jmp(pw.addr);
     CHIP8::dump_memory(chip8);
 
     LOG_INFO("Application starting");
@@ -60,8 +66,7 @@ auto main(int argc, char **argv) -> int {
         global.sim.frame_start_time = now;
         global.sim.total_runtime = now - global.sim.run_start_time;
 
-        fetch_and_execute(chip8);
-        last_instruction_time = now;
+        CHIP8::step(chip8, 1);
 
         handle_input();
         Render::gui_debug();

@@ -4,6 +4,8 @@
 #include <chrono>
 #include <glm/glm.hpp>
 
+using namespace std::chrono_literals;
+
 namespace Constants {
 inline constexpr std::string_view window_title = "Tower Defense";
 inline constexpr int window_width = 1280;
@@ -13,7 +15,8 @@ inline constexpr float aspect_ratio = static_cast<float>(window_width) / window_
 inline constexpr float path_marker_width = 0.025f;
 inline constexpr float path_marker_height = 0.025f;
 
-inline constexpr std::chrono::duration<float> projectile_life_time = std::chrono::duration<float>(1.0f);
+inline constexpr size_t n_iter_per_frame = 700;
+inline constexpr auto timer_update_delay = 16'666'667ns; // 1 second / 60 in nanoseconds
 
 inline constexpr std::array<float, 12> square_vertices = {
     1.0f, -1.0f, 0.0f,
