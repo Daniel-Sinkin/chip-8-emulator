@@ -1,0 +1,66 @@
+0200: CLS                 ; Clear the display
+0202: LDI I,#22A          ; I ← #22A
+0204: LDS V0,#0C          ; V0 ← #0C
+0206: LDS V1,#08          ; V1 ← #08
+0208: DRW V0,V1,#F        ; Draw 8xF sprite at (V0,V1)   (VF = collision)
+020A: ADR V0,#09          ; V0 += #09
+020C: LDI I,#239          ; I ← #239
+020E: DRW V0,V1,#F        ; Draw 8xF sprite at (V0,V1)   (VF = collision)
+0210: LDI I,#248          ; I ← #248
+0212: ADR V0,#08          ; V0 += #08
+0214: DRW V0,V1,#F        ; Draw 8xF sprite at (V0,V1)   (VF = collision)
+0216: ADR V0,#04          ; V0 += #04
+0218: LDI I,#257          ; I ← #257
+021A: DRW V0,V1,#F        ; Draw 8xF sprite at (V0,V1)   (VF = collision)
+021C: ADR V0,#08          ; V0 += #08
+021E: LDI I,#266          ; I ← #266
+0220: DRW V0,V1,#F        ; Draw 8xF sprite at (V0,V1)   (VF = collision)
+0222: ADR V0,#08          ; V0 += #08
+0224: LDI I,#275          ; I ← #275
+0226: DRW V0,V1,#F        ; Draw 8xF sprite at (V0,V1)   (VF = collision)
+0228: JMP #228            ; Jump to address #228
+022A: DW  0xFF00
+022C: DW  0xFF00
+022E: SEQ VC,#00          ; Skip next if VC == #00
+0230: SEQ VC,#00          ; Skip next if VC == #00
+0232: SEQ VC,#00          ; Skip next if VC == #00
+0234: SEQ VC,#00          ; Skip next if VC == #00
+0236: DW  0xFF00
+0238: DW  0xFFFF
+023A: SYS #0FF            ; Execute system call at #0FF
+023C: SYS #038            ; Execute system call at #038
+023E: SYS #03F            ; Execute system call at #03F
+0240: SYS #03F            ; Execute system call at #03F
+0242: SYS #038            ; Execute system call at #038
+0244: SYS #0FF            ; Execute system call at #0FF
+0246: SYS #0FF            ; Execute system call at #0FF
+0248: LDC V0,V0           ; V0 ← V0
+024A: DW  0xE000
+024C: DW  0xE000
+024E: LDC V0,V0           ; V0 ← V0
+0250: LDC V0,V0           ; V0 ← V0
+0252: DW  0xE000
+0254: DW  0xE000
+0256: DW  0x80F8
+0258: SYS #0FC            ; Execute system call at #0FC
+025A: SYS #03E            ; Execute system call at #03E
+025C: SYS #03F            ; Execute system call at #03F
+025E: SYS #03B            ; Execute system call at #03B
+0260: SYS #039            ; Execute system call at #039
+0262: SYS #0F8            ; Execute system call at #0F8
+0264: SYS #0F8            ; Execute system call at #0F8
+0266: SYS #300            ; Execute system call at #300
+0268: SYS #700            ; Execute system call at #700
+026A: SYS #F00            ; Execute system call at #F00
+026C: JMO V0,#F00         ; Jump to V0 + #F00
+026E: DW  0xFB00
+0270: DW  0xF300
+0272: DW  0xE300
+0274: SNE V3,#E0          ; Skip next if V3 != #E0
+0276: CLS                 ; Clear the display
+0278: SYS #080            ; Execute system call at #080
+027A: SYS #080            ; Execute system call at #080
+027C: SYS #080            ; Execute system call at #080
+027E: SYS #080            ; Execute system call at #080
+0280: CLS                 ; Clear the display
+0282: CLS                 ; Clear the display
