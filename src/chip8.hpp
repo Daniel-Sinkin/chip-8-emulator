@@ -264,7 +264,7 @@ public:
     WORD addr;
 
     void set_addr(WORD new_addr) { addr = new_addr; }
-    explicit ProgramWriter(Chip8 & chip, WORD start = 0x200)
+    explicit ProgramWriter(Chip8 & chip, WORD start = Constants::rom_program_start)
         : c(chip), addr(start) {}
 
     // TODO(CLEANUP): Fix Alignment
@@ -329,7 +329,6 @@ inline auto decode(WORD opcode) -> OpInfo const * {
 inline auto human_readable_fmt(WORD opcode) -> std::optional<std::string> {
     if (const auto *info = decode(opcode)) {
         switch (info->id) {
-        /* ───────────────────────────── system / flow ───────────────────────── */
         case Op::sys:
             if (opcode == 0) return std::nullopt;
             return std::format("Execute system call at #{:03X}", field_NNN(opcode));
@@ -372,7 +371,7 @@ inline auto human_readable_fmt(WORD opcode) -> std::optional<std::string> {
                 field_X(opcode));
         case Op::set_register:
             return std::format(
-                "V{:X} ← #{:02X}",
+                "V{:X} <- #{:02X}",
                 field_X(opcode), field_NN(opcode));
         case Op::add_to_register:
             return std::format(
@@ -380,7 +379,7 @@ inline auto human_readable_fmt(WORD opcode) -> std::optional<std::string> {
                 field_X(opcode), field_NN(opcode));
         case Op::copy_register:
             return std::format(
-                "V{:X} ← V{:X}",
+                "V{:X} <- V{:X}",
                 field_X(opcode), field_Y(opcode));
         case Op::math_or:
             return std::format(
@@ -413,13 +412,13 @@ inline auto human_readable_fmt(WORD opcode) -> std::optional<std::string> {
                 field_X(opcode));
         case Op::set_i:
             return std::format(
-                "I ← #{:03X}", field_NNN(opcode));
+                "I <- #{:03X}", field_NNN(opcode));
         case Op::add_i:
             return std::format(
                 "I += V{:X}", field_X(opcode));
         case Op::set_i_sprite:
             return std::format(
-                "I ← sprite address for digit V{:X}", field_X(opcode));
+                "I <- sprite address for digit V{:X}", field_X(opcode));
         case Op::store_bcd:
             return std::format(
                 "Store BCD of V{:X} at I, I+1, I+2", field_X(opcode));
@@ -431,26 +430,26 @@ inline auto human_readable_fmt(WORD opcode) -> std::optional<std::string> {
                 "Load V0..V{:X} from memory at I", field_X(opcode));
         case Op::load_delay:
             return std::format(
-                "V{:X} ← delay-timer", field_X(opcode));
+                "V{:X} <- delay-timer", field_X(opcode));
         case Op::wait_key:
             return std::format(
                 "Wait for key-press, store in V{:X}", field_X(opcode));
         case Op::set_delay:
             return std::format(
-                "delay-timer ← V{:X}", field_X(opcode));
+                "delay-timer <- V{:X}", field_X(opcode));
         case Op::set_sound:
             return std::format(
-                "sound-timer ← V{:X}", field_X(opcode));
+                "sound-timer <- V{:X}", field_X(opcode));
         case Op::get_random:
             return std::format(
-                "V{:X} ← (rand & #{:02X})",
+                "V{:X} <- (rand & #{:02X})",
                 field_X(opcode), field_NN(opcode));
         case Op::draw:
             return std::format(
                 "Draw 8x{:X} sprite at (V{:X},V{:X})   (VF = collision)",
                 field_N(opcode), field_X(opcode), field_Y(opcode));
         default:
-            return std::nullopt; // should not happen
+            return std::nullopt;
         }
     }
     return std::nullopt;
@@ -534,7 +533,7 @@ inline auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD>
 }
 
 inline auto write_program_to_memory(Chip8 &c, const std::vector<WORD> data) -> void {
-    WORD addr = 0x200;
+    WORD addr = Constants::rom_program_start;
     for (WORD instr : data) {
         if (addr + 1 >= c.mem.size()) {
             PANIC("Instruction write exceeds memory bound!");
@@ -573,7 +572,7 @@ inline auto initialise(Chip8 &c) -> void {
             ++loc;
         }
     } // Font data
-    c.PC = 0x200;
+    c.PC = Constants::rom_program_start;
     c.last_timer_update = std::chrono::steady_clock::now();
 }
 
@@ -623,7 +622,6 @@ inline auto disassemble_rom_to_file(
     // Load and validate ROM (re-uses utility already in your code base).
     const std::vector<WORD> instructions = load_ch8(rom_path);
 
-    // Derive default output file name if the caller did not provide one.
     if (!out_path) {
         out_path = rom_path; // copy
         out_path->replace_extension(
@@ -636,8 +634,7 @@ inline auto disassemble_rom_to_file(
             "Failed to create listing file: " + out_path->string());
     }
 
-    // Iterate through the ROM, starting at PC = 0x200.
-    WORD pc = 0x200;
+    WORD pc = Constants::rom_program_start;
     for (const WORD instr : instructions) {
         ofs << format_instruction_line(pc, instr) << '\n';
         pc += 2; // each opcode = 2 bytes

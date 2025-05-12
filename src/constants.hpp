@@ -15,6 +15,8 @@ inline constexpr float aspect_ratio = static_cast<float>(window_width) / window_
 inline constexpr float path_marker_width = 0.025f;
 inline constexpr float path_marker_height = 0.025f;
 
+inline constexpr WORD rom_program_start = 0x200;
+
 inline constexpr size_t n_iter_per_frame = 700;
 inline constexpr auto timer_update_delay = 16'666'667ns; // 1 second / 60 in nanoseconds
 
@@ -76,6 +78,8 @@ inline constexpr int max_tower_level = 5;
 inline constexpr char const *fp_shader_dir = "assets/shaders/";
 inline constexpr char const *fp_vertex_shader = "assets/shaders/vertex.glsl";
 inline constexpr char const *fp_fragment_shader = "assets/shaders/fragment.glsl";
+
+inline constexpr char const *fp_sound_beep = "assets/sound/beep.mp3";
 
 inline constexpr std::array<uint8_t, 5 * 16> fontdata{
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
