@@ -32,6 +32,21 @@ struct Chip8Config {
     changed so that they shifted VX in place, and ignored the Y completely.
     */
     bool legacy_shift = false;
+    /*
+    https://tobiasvl.github.io/blog/write-a-chip-8-emulator/#fx1e-add-to-index
+
+    Unlike other arithmetic instructions, this did not affect VF on overflow on the original COSMAC VIP.
+    However, it seems that some interpreters set VF to 1 if I “overflows” from 0FFF to above 1000
+    (outside the normal addressing range). This wasn’t the case on the original COSMAC VIP, at least,
+    but apparently the CHIP-8 interpreter for Amiga behaved this way. At least one known game,
+    Spacefight 2091!, relies on this behavior. I don’t know of any games that rely on this not happening,
+    so perhaps it’s safe to do it like the Amiga interpreter did.
+    */
+    bool legacy_add_index = false;
+    /*
+    https://tobiasvl.github.io/blog/write-a-chip-8-emulator/#fx55-and-fx65-store-and-load-memory
+    */
+    bool legacy_memory_dump = false;
 };
 struct Chip8 {
     std::array<BYTE, 4 * 1024> mem = {};
@@ -46,6 +61,7 @@ struct Chip8 {
     std::array<BYTE, 16> VX{};
     int iteration_counter = 0;
     Chip8Config config;
+    std::array<bool, 16> keypad = {};
 };
 inline Chip8 chip8;
 
@@ -184,17 +200,59 @@ inline auto exec_get_random          (Chip8 &c, WORD w) -> void {
     c.VX[field_X(w)] = rand & field_NN(w);
 }
 inline auto exec_draw                (Chip8 &c, WORD w) -> void { draw_sprite(c, w); }
-inline auto exec_skip_pressed        (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_skip_not_pressed    (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_skip_pressed        (Chip8 &c, WORD w) -> void {
+    BYTE key_target = c.VX[field_X(w)];
+    if(key_target > 0xF) PANIC("In exec_skip_pressed, VX value must be <= 0xF!");
+    if(c.keypad[key_target]) c.PC += 2;
+}
+inline auto exec_skip_not_pressed    (Chip8 &c, WORD w) -> void {
+    BYTE key_target = c.VX[field_X(w)];
+    if(key_target > 0xF) PANIC("In exec_skip_not_pressed, VX value must be <= 0xF!");
+    if(!c.keypad[key_target]) c.PC += 2;
+}
 inline auto exec_load_delay          (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = c.delay_timer; }
-inline auto exec_wait_key            (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_wait_key            (Chip8 &c, WORD w) -> void {
+    for(size_t i = 0; i < 0xF; i++) {
+        if(c.keypad[i]) {
+            c.VX[field_X(w)] = i;
+            return;
+        }
+    }
+    c.PC -= 2; // Repeat 
+}
 inline auto exec_set_delay           (Chip8 &c, WORD w) -> void { c.delay_timer = c.VX[field_X(w)]; }
 inline auto exec_set_sound           (Chip8 &c, WORD w) -> void { c.sound_timer = c.VX[field_X(w)]; }
-inline auto exec_add_i               (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_set_i_sprite        (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_store_bcd           (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_dump_registers      (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_fill_registers      (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_add_i               (Chip8 &c, WORD w) -> void {
+    BYTE VX = c.VX[field_X(w)];
+    WORD tmp = c.I + VX;
+    if(!c.config.legacy_add_index && (tmp > 0xFFF)) {
+        c.VX[0xF] = 1;
+    }
+    c.I = tmp;
+}
+inline auto exec_set_i_sprite        (Chip8 &c, WORD w) -> void {
+    // TODO: Check if we should offset into 0x50
+}
+inline auto exec_store_bcd           (Chip8 &c, WORD w) -> void {
+    BYTE VX = c.VX[field_X(w)];
+    c.mem[c.I] = VX / 100;
+    c.mem[c.I + 1] = (VX / 10) % 10;
+    c.mem[c.I + 2] = VX % 10;
+}
+inline auto exec_dump_registers      (Chip8 &c, WORD w) -> void {
+    BYTE X = field_X(w);
+    for(size_t i = 0; i <= X; ++i) {
+        c.mem[c.I + i] = c.VX[i];
+    }
+    if(c.config.legacy_memory_dump) c.I += X + 1;
+}
+inline auto exec_fill_registers      (Chip8 &c, WORD w) -> void {
+    BYTE X = field_X(w);
+    for(size_t i = 0; i <= X; ++i) {
+        c.VX[i] = c.mem[c.I + i];
+    }
+    if(c.config.legacy_memory_dump) c.I += X + 1;
+}
 inline auto exec_sys                 (Chip8 &c, WORD w) -> void { PANIC_UNDEFINED(w); }
 
 inline auto encode_cls                 (WORD,WORD,WORD,WORD,WORD         ) -> WORD { return 0x00E0; }

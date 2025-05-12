@@ -112,7 +112,7 @@ public:
     void ld_vx_dt(BYTE x) { write_encoded(Op::load_delay, x); }
 
     /// (FX0A) Wait for key press, then store in VX.
-    void ld_vx_k(BYTE x) { write_encoded(Op::wait_key, x); }
+    void wait_key(BYTE x) { write_encoded(Op::wait_key, x); }
 
     /// (FX15) Set delay timer = VX.
     void set_delay(BYTE x) { write_encoded(Op::set_delay, x); }

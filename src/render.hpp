@@ -41,7 +41,6 @@ inline auto display_grid() -> void {
         }
         ImGui::PopStyleVar();
     }
-
     { // Chip8 Internals
         {
             constexpr int LOOKBACK = 3;
@@ -96,6 +95,84 @@ inline auto display_grid() -> void {
             ImGui::EndTable();
         }
     }
+    { // Keypad
+    }
+    ImGui::End();
+}
+
+inline auto keypad() -> void {
+    ImGui::Begin("Keypad");
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
+
+    // grab raw SDL keyboard state
+    const Uint8 *keys = SDL_GetKeyboardState(nullptr);
+    auto &style = ImGui::GetStyle();
+
+    // mapping: button label, SDL scancode, CHIP-8 keypad index
+    struct Key {
+        const char *label;
+        SDL_Scancode sc;
+        int idx;
+    };
+    static constexpr Key keymap[16] = {
+        {"1", SDL_SCANCODE_1, 0x1},
+        {"2", SDL_SCANCODE_2, 0x2},
+        {"3", SDL_SCANCODE_3, 0x3},
+        {"C", SDL_SCANCODE_4, 0xC},
+
+        {"4", SDL_SCANCODE_Q, 0x4},
+        {"5", SDL_SCANCODE_W, 0x5},
+        {"6", SDL_SCANCODE_E, 0x6},
+        {"D", SDL_SCANCODE_R, 0xD},
+
+        {"7", SDL_SCANCODE_A, 0x7},
+        {"8", SDL_SCANCODE_S, 0x8},
+        {"9", SDL_SCANCODE_D, 0x9},
+        {"E", SDL_SCANCODE_F, 0xE},
+
+        {"A", SDL_SCANCODE_Z, 0xA},
+        {"0", SDL_SCANCODE_X, 0x0},
+        {"B", SDL_SCANCODE_C, 0xB},
+        {"F", SDL_SCANCODE_V, 0xF},
+    };
+
+    // (re)initialize all keys to “up” each frame
+    for (int i = 0; i < 16; ++i)
+        chip8.keypad[i] = 0;
+
+    // render 4×4 grid
+    for (int i = 0; i < 16; ++i) {
+        const auto &km = keymap[i];
+        bool isDown = keys[km.sc];
+
+        // if held, light it up
+        if (isDown)
+            chip8.keypad[km.idx] = 1;
+
+        // pick colors: default vs “active” tint
+        ImVec4 col = isDown ? style.Colors[ImGuiCol_ButtonActive] : style.Colors[ImGuiCol_Button];
+        ImVec4 colHov = isDown ? style.Colors[ImGuiCol_ButtonActive] : style.Colors[ImGuiCol_ButtonHovered];
+        ImVec4 colAct = style.Colors[ImGuiCol_ButtonActive];
+
+        ImGui::PushStyleColor(ImGuiCol_Button, col);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, colHov);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, colAct);
+
+        // label shows the hex digit, unique ID hides repetition
+        std::string lbl = std::string(km.label) + "##key_" + km.label;
+        if (ImGui::Button(lbl.c_str(), ImVec2(40, 40))) {
+            // also allow mouse-click to press
+            chip8.keypad[km.idx] = 1;
+        }
+
+        ImGui::PopStyleColor(3);
+
+        // same-line except after every 4th
+        if ((i & 3) != 3)
+            ImGui::SameLine();
+    }
+
+    ImGui::PopStyleVar();
     ImGui::End();
 }
 
@@ -118,6 +195,7 @@ inline auto gui_debug() -> void {
     ImGui::End();
 
     display_grid();
+    keypad();
     ImGui::Render();
 }
 

@@ -65,6 +65,7 @@ auto main(int argc, char **argv) -> int {
     pw.ld_vx_dt(0x5);
     pw.skip_eq(0x5, 0x0);
     pw.jmp(pw.addr - 0x4);
+    pw.wait_key(0x6);
     pw.jmp(0x200);
     CHIP8::dump_memory(chip8);
 
