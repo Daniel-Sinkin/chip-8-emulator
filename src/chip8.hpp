@@ -65,41 +65,41 @@ using ExecFn = void (*)(Chip8 &, WORD);
 using EncodeFn = WORD (*)(WORD X, WORD Y, WORD N, WORD NN, WORD NNN);
 
 enum class Op {
-    cls,                  // ✅ Clear display
-    ret,                  // ❌ Return from Subroutine
-    jmp,                  // ✅ Jumpt to Address
-    call_subroutine,      // ❌ Call subroutine at nnn
-    skip_eq,              // ❌
-    skip_not_eq,          // ❌
-    skip_eq_register,     // ❌
-    set_register,         // ❌
-    add_to_register,      // ❌
-    copy_register,        // ❌
-    math_or,              // ❌
-    math_and,             // ❌
-    math_xor,             // ❌
-    math_add,             // ❌
-    math_sub,             // ❌
-    shr,                  // ❌
-    subn,                 // ❌
-    shl,                  // ❌
-    skip_not_eq_register, // ❌
-    set_i,                // ❌
-    jmp_offset,           // ❌
-    get_random,           // ❌
-    draw,                 // ✅ Draw sprite at (Vx, Vy)
-    skip_pressed,         // ❌
-    skip_not_pressed,     // ❌
-    load_delay,           // ❌
-    wait_key,             // ❌
-    set_delay,            // ✅ Set Delay Timer
-    set_sound,            // ❌
-    add_i,                // ❌
-    set_i_sprite,         // ❌
-    store_bcd,            // ❌
-    dump_registers,       // ❌
-    fill_registers,       // ❌
-    sys,                  // ✅ Deprecated, not using
+    cls,
+    ret,
+    jmp,
+    call_subroutine,
+    skip_eq,
+    skip_not_eq,
+    skip_eq_register,
+    set_register,
+    add_to_register,
+    copy_register,
+    math_or,
+    math_and,
+    math_xor,
+    math_add,
+    math_sub,
+    shr,
+    subn,
+    shl,
+    skip_not_eq_register,
+    set_i,
+    jmp_offset,
+    get_random,
+    draw,
+    skip_pressed,
+    skip_not_pressed,
+    load_delay,
+    wait_key,
+    set_delay,
+    set_sound,
+    add_i,
+    set_i_sprite,
+    store_bcd,
+    dump_registers,
+    fill_registers,
+    sys,
 };
 
 struct OpInfo {
