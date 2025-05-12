@@ -64,7 +64,6 @@ void playBeep() {
 }
 
 void updateBeep(bool should_beep) {
-    LOG_INFO("updateBeep({})", should_beep);
     static Mix_Chunk *beep = [] {
         Mix_Chunk *c = Mix_LoadWAV(Constants::fp_sound_beep);
         if (!c) throw std::runtime_error("Failed to load beep: " + std::string(Mix_GetError()));

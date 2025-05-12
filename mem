@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-xxd -s 0x200 -l 0x100 build/memory.bin
+xxd -s 0x200 -l 0x300 build/memory.bin

@@ -415,14 +415,14 @@ inline auto disassemble(WORD w) -> std::string {
 
 inline auto fetch_and_execute(Chip8 &c) -> void {
     c.iteration_counter += 1;
-    WORD op = (c.mem[c.PC] << 8) | c.mem[c.PC + 1];
+    WORD w = (c.mem[c.PC] << 8) | c.mem[c.PC + 1];
     c.PC += 2;
 
-    if (auto info = decode(op)) {
-        info->exec(c, op);
+    if (auto info = decode(w)) {
+        info->exec(c, w);
         return;
     }
-    PANIC_NOT_IMPLEMENTED(op);
+    PANIC_NOT_IMPLEMENTED(w);
 }
 
 inline auto format_instruction_line(WORD pc, WORD instr) -> std::string {
@@ -516,8 +516,6 @@ inline auto update_timers(Chip8 &c) -> void {
         c.sound_timer = (c.sound_timer > ticks) ? c.sound_timer - ticks : 0;
 
         c.last_timer_update += Constants::timer_update_delay * ticks;
-
-        LOG_INFO("Calling updateBeep with {}", c.sound_timer > 0);
         Audio::updateBeep(c.sound_timer > 0);
     }
 }

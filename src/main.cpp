@@ -56,9 +56,10 @@ auto main(int argc, char **argv) -> int {
     CHIP8::initialise(chip8);
     CHIP8::load_program_example_ibm(chip8);
     CHIP8::ProgramWriter pw(chip8, 0x228);
-    pw.ld_vx_byte(0x5, 100);
-    pw.set_sound(0x5);
-    pw.jmp(pw.addr);
+    pw.jmp(0x400);
+    pw.addr = 0x300;
+    pw.jmp(0x400);
+    pw.shift_program_forward(0x300, 0x2, 0x100);
     CHIP8::dump_memory(chip8);
 
     LOG_INFO("Application starting");

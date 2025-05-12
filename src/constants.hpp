@@ -81,7 +81,7 @@ inline constexpr char const *fp_shader_dir = "assets/shaders/";
 inline constexpr char const *fp_vertex_shader = "assets/shaders/vertex.glsl";
 inline constexpr char const *fp_fragment_shader = "assets/shaders/fragment.glsl";
 
-inline constexpr char const *fp_sound_beep = "assets/sound/beep.mp3";
+inline constexpr char const *fp_sound_beep = "assets/sound/beep.wav";
 
 inline constexpr std::array<uint8_t, 5 * 16> fontdata{
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0

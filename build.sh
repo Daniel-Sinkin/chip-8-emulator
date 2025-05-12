@@ -4,8 +4,23 @@ set -euo pipefail
 #######################################
 # Configuration
 #######################################
-BUILD_DIR="build"                 # where CMake will put its files
-GENERATOR="Unix Makefiles"        # change to "Ninja" if you prefer
+BUILD_DIR="build"                
+GENERATOR="Unix Makefiles"        
+BEEP_OUT="assets/sound/beep.wav"  # where to write the generated beep
+
+#######################################
+# Generate CHIP-8 beep sound
+#######################################
+echo "🔉  Generating CHIP-8 beep…"
+# ensure the output directory exists
+mkdir -p "$(dirname "$BEEP_OUT")"
+# Generate beep sound to output path
+PYTHON_BIN=$(command -v python3 || command -v python)
+if [ -z "$PYTHON_BIN" ]; then
+  echo "❌  Neither python3 nor python found in PATH."
+  exit 1
+fi
+"$PYTHON_BIN" util/generate_beep.py --output "$BEEP_OUT"
 
 #######################################
 # Clean old cache (prevents generator‐mismatch)
