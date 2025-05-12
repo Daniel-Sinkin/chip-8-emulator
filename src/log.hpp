@@ -18,10 +18,10 @@ inline void log(LogLevel level, std::string_view fmt, Args &&...args) {
     std::string msg = std::vformat(fmt, std::make_format_args(args...));
     switch (level) {
     case LogLevel::Info:
-        std::cout << "[INFO]  " << msg << "\n";
+        std::cout << "[INFO] " << msg << "\n";
         break;
     case LogLevel::Warn:
-        std::cout << "[WARN]  " << msg << "\n";
+        std::cout << "[WARN] " << msg << "\n";
         break;
     case LogLevel::Error:
         std::cerr << "[ERROR] " << msg << "\n";

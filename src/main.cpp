@@ -58,9 +58,9 @@ auto main(int argc, char **argv) -> int {
     CHIP8::ProgramWriter pw(chip8, 0x228);
     pw.jmp(0x300);
     pw.addr = 0x300;
-    pw.ld_vx_byte(0x5, 120);
+    pw.ld_vx_byte(0x5, 40);
     pw.set_delay(0x5);
-    pw.ld_vx_byte(0x5, 120);
+    pw.ld_vx_byte(0x5, 40);
     pw.set_sound(0x5);
     pw.ld_vx_dt(0x5);
     pw.skip_eq(0x5, 0x0);
