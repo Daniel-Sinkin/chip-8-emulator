@@ -68,6 +68,20 @@ set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(sdl2)
 
 # ---------------------------------------
+# Fetch SDL2_mixer – audio back-end
+FetchContent_Declare(
+    sdl2_mixer
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git
+    GIT_TAG        release-2.8.1   # latest stable as of May 2025
+)
+# Keep the build small and make sure MP3 is compiled in
+set(SDL2MIXER_VENDORED            ON  CACHE BOOL "" FORCE)  # use bundled decoders
+set(SDL2MIXER_MUSIC_MP3_DRMP3     ON  CACHE BOOL "" FORCE)  # MP3 via dr_mp3
+set(SDL2MIXER_MIDI                OFF CACHE BOOL "" FORCE)  # example: disable MIDI
+set(SDL2MIXER_INSTALL             OFF CACHE BOOL "" FORCE)  # no 'make install'
+FetchContent_MakeAvailable(sdl2_mixer)
+
+# ---------------------------------------
 # Source files & executable
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 add_executable(main ${SOURCES})
@@ -117,6 +131,7 @@ endif()
 target_link_libraries(main PRIVATE
     SDL2::SDL2
     SDL2::SDL2main
+    SDL2_mixer::SDL2_mixer
     glad
     OpenGL::GL
     imgui_impl

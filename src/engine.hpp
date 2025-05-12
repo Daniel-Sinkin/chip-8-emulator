@@ -6,15 +6,17 @@
 #include <SDL.h>
 #include <glad/glad.h>
 
+#include "audio.hpp"
 #include "global.hpp"
 #include "log.hpp"
 #include "utils.hpp"
 
 [[nodiscard]] inline auto engine_setup() -> bool {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
         LOG_ERR(std::string("SDL_Init failed: ") + SDL_GetError());
         return false;
     }
+    Audio::init();
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -93,6 +95,7 @@ inline auto engine_cleanup() -> void {
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 
+    Audio::shutdown();
     SDL_GL_DeleteContext(global.renderer.gl_context);
     SDL_DestroyWindow(global.renderer.window);
     SDL_Quit();

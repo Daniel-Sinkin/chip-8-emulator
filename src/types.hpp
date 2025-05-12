@@ -5,14 +5,9 @@
 #include <glm/gtc/type_ptr.hpp>
 using glm::vec2;
 using glm::vec3;
-
 #include <nlohmann/json.hpp>
+
 using json = nlohmann::json;
-
-using BYTE = uint8_t;
-using PIXEL = uint8_t; // In principle we could use bool but bit arrays are slower, memory tradeoff worth it
-using WORD = uint16_t;
-
 struct Position {
     float x;
     float y;

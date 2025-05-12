@@ -23,8 +23,10 @@ using std::chrono::steady_clock;
 using namespace std::chrono_literals;
 
 // Project headers
+#include "audio.hpp"
 #include "chip8.hpp"
-#include "chip8_tests.hpp"
+#include "chip8_types.hpp"
+#include "chip8_writer.hpp"
 #include "constants.hpp"
 #include "engine.hpp"
 #include "gl.hpp"
@@ -53,6 +55,10 @@ auto example_dissamble() -> int {
 auto main(int argc, char **argv) -> int {
     CHIP8::initialise(chip8);
     CHIP8::load_program_example_ibm(chip8);
+    CHIP8::ProgramWriter pw(chip8, 0x228);
+    pw.ld_vx_byte(0x5, 100);
+    pw.set_sound(0x5);
+    pw.jmp(pw.addr);
     CHIP8::dump_memory(chip8);
 
     LOG_INFO("Application starting");

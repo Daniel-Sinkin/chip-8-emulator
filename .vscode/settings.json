@@ -66,6 +66,8 @@
         "algorithm": "cpp",
         "chrono": "cpp",
         "source_location": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "typeindex": "cpp",
+        "random": "cpp"
     }
 }
