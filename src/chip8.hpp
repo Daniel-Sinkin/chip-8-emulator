@@ -230,8 +230,10 @@ inline auto exec_add_i               (Chip8 &c, WORD w) -> void {
     }
     c.I = tmp;
 }
-inline auto exec_set_i_sprite        (Chip8 &c, WORD w) -> void {
-    // TODO: Check if we should offset into 0x50
+inline auto exec_set_i_sprite(Chip8 &c, WORD w) -> void {
+    constexpr WORD bytes_per_char = 5; 
+    BYTE digit = c.VX[field_X(w)] & 0x0F;    
+    c.I = Constants::rom_font_start + digit * bytes_per_char;
 }
 inline auto exec_store_bcd           (Chip8 &c, WORD w) -> void {
     BYTE VX = c.VX[field_X(w)];
@@ -590,7 +592,7 @@ inline auto load_program_example_corax_test_rom(Chip8 &c) -> void {
 
 inline auto initialise(Chip8 &c) -> void {
     { // Font data
-        size_t loc = 0x050;
+        size_t loc = Constants::rom_font_start;
         for (auto &font : Constants::fontdata) {
             c.mem[loc] = font;
             ++loc;

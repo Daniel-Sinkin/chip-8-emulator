@@ -18,6 +18,7 @@ inline constexpr float path_marker_width = 0.025f;
 inline constexpr float path_marker_height = 0.025f;
 
 inline constexpr uint16_t rom_program_start = 0x200;
+inline constexpr uint16_t rom_font_start = 0x050;
 
 inline constexpr size_t n_iter_per_frame = 700;
 inline constexpr auto timer_update_delay = 16'666'667ns; // 1 second / 60 in nanoseconds
