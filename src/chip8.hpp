@@ -20,6 +20,19 @@
 #include "utils.hpp"
 
 namespace CHIP8 {
+struct Chip8Config {
+    /*
+    https://tobiasvl.github.io/blog/write-a-chip-8-emulator/#8xy6-and-8xye-shift
+
+    In the CHIP-8 interpreter for the original COSMAC VIP, this instruction did the following:
+    It put the value of VY into VX, and then shifted the value in VX 1 bit to the right (8XY6) or
+    left (8XYE). VY was not affected, but the flag register VF would be set to the bit that was shifted out.
+
+    However, starting with CHIP-48 and SUPER-CHIP in the early 1990s, these instructions were
+    changed so that they shifted VX in place, and ignored the Y completely.
+    */
+    bool legacy_shift = false;
+};
 struct Chip8 {
     std::array<BYTE, 4 * 1024> mem = {};
     std::array<std::array<PIXEL, 64>, 32> display = {};
@@ -32,6 +45,7 @@ struct Chip8 {
     std::chrono::steady_clock::time_point last_timer_update;
     std::array<BYTE, 16> VX{};
     int iteration_counter = 0;
+    Chip8Config config;
 };
 inline Chip8 chip8;
 
@@ -134,10 +148,34 @@ inline auto exec_math_add            (Chip8 &c, WORD w) -> void {
     c.VX[0xF] = (tmp > 0xFF) ? 1 : 0; // Carry Flag bit
     c.VX[field_X(w)] = static_cast<BYTE>(tmp);
 }
-inline auto exec_math_sub            (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_shr                 (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_subn                (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
-inline auto exec_shl                 (Chip8 &c, WORD w) -> void { PANIC_NOT_IMPLEMENTED(w); }
+inline auto exec_math_sub            (Chip8 &c, WORD w) -> void {
+    BYTE X = field_X(w);
+    BYTE Y = field_Y(w);
+    BYTE VX = c.VX[X];
+    BYTE VY= c.VX[Y];
+    c.VX[0xF] = (VX >= VY) ? 1 : 0; // If NOT underflowing we set flag
+    c.VX[X] -= VY;
+}
+inline auto exec_shr                 (Chip8 &c, WORD w) -> void {
+    BYTE X = field_X(w);
+    if(c.config.legacy_shift) c.VX[X] = c.VX[field_Y(w)];
+    c.VX[0xF] = c.VX[X] & 1;
+    c.VX[X] >>= 1;
+}
+inline auto exec_subn                (Chip8 &c, WORD w) -> void {
+    BYTE X = field_X(w);
+    BYTE Y = field_Y(w);
+    BYTE VX = c.VX[X];
+    BYTE VY= c.VX[Y];
+    c.VX[0xF] = (VY >= VX) ? 1 : 0; // If NOT underflowing we set flag
+    c.VX[X] = (VY - VX);
+}
+inline auto exec_shl                 (Chip8 &c, WORD w) -> void {
+    BYTE X = field_X(w);
+    if(c.config.legacy_shift) c.VX[X] = c.VX[field_Y(w)];
+    c.VX[0xF] = c.VX[X] & 1;
+    c.VX[X] <<= 1;
+}
 inline auto exec_skip_not_eq_register(Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] != c.VX[field_Y(w)]) c.PC += 2; }
 inline auto exec_set_i               (Chip8 &c, WORD w) -> void {c.I = field_NNN(w);}
 inline auto exec_jmp_offset          (Chip8 &c, WORD w) -> void { c.PC = field_NNN(w) + c.VX[0x0]; }
@@ -218,16 +256,16 @@ inline constexpr const std::array<OpInfo, 35> OPS = {{
     {Op::set_i             , 0xF000, 0xA000, "LDI I,#{NNN:03X}"        , exec_set_i                 , encode_set_i},
     {Op::jmp_offset        , 0xF000, 0xB000, "JMO V0,#{NNN:03X}"       , exec_jmp_offset            , encode_jmp_offset},
     {Op::get_random        , 0xF000, 0xC000, "RND V{X:X},#{NN:02X}"    , exec_get_random            , encode_get_random},
-    {Op::draw               , 0xF000, 0xD000, "DRW V{X:X},V{Y:X},#{N:X}", exec_draw                   , encode_draw},
+    {Op::draw              , 0xF000, 0xD000, "DRW V{X:X},V{Y:X},#{N:X}", exec_draw                   , encode_draw},
     {Op::skip_pressed      , 0xF0FF, 0xE09E, "SKP V{X:X}"              , exec_skip_pressed          , encode_skip_pressed},
     {Op::skip_not_pressed  , 0xF0FF, 0xE0A1, "SKN V{X:X}"             , exec_skip_not_pressed      , encode_skip_not_pressed},
-    {Op::load_delay        , 0xF0FF, 0xF007, "LDD  V{X:X},DT"           , exec_load_delay            , encode_load_delay},
-    {Op::wait_key          , 0xF0FF, 0xF00A, "LDK  V{X:X},K"            , exec_wait_key              , encode_wait_key},
+    {Op::load_delay        , 0xF0FF, 0xF007, "LDD V{X:X},DT"           , exec_load_delay            , encode_load_delay},
+    {Op::wait_key          , 0xF0FF, 0xF00A, "LDK V{X:X},K"            , exec_wait_key              , encode_wait_key},
     {Op::set_delay         , 0xF0FF, 0xF015, "SDD V{X:X}"              , exec_set_delay             , encode_set_delay},
     {Op::set_sound         , 0xF0FF, 0xF018, "SDT ST,V{X:X}"           , exec_set_sound             , encode_set_sound},
     {Op::add_i             , 0xF0FF, 0xF01E, "ADI I,V{X:X}"            , exec_add_i                 , encode_add_i},
-    {Op::set_i_sprite      , 0xF0FF, 0xF029, "LDP  F,V{X:X}"            , exec_set_i_sprite          , encode_set_i_sprite},
-    {Op::store_bcd         , 0xF0FF, 0xF033, "BCD  B,V{X:X}"            , exec_store_bcd             , encode_store_bcd},
+    {Op::set_i_sprite      , 0xF0FF, 0xF029, "LDP F,V{X:X}"            , exec_set_i_sprite          , encode_set_i_sprite},
+    {Op::store_bcd         , 0xF0FF, 0xF033, "BCD B,V{X:X}"            , exec_store_bcd             , encode_store_bcd},
     {Op::dump_registers    , 0xF0FF, 0xF055, "VXD [I],V{X:X}"           , exec_dump_registers        , encode_dump_registers},
     {Op::fill_registers    , 0xF0FF, 0xF065, "VXL V{X:X},[I]"           , exec_fill_registers        , encode_fill_registers},
     {Op::sys               , 0xF000, 0x0000, "SYS #{NNN:03X}"          , exec_sys                   , encode_sys},
