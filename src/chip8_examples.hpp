@@ -8,8 +8,10 @@
 namespace fs = std::filesystem;
 
 #include "chip8.hpp"
+#include "chip8_writer.hpp"
 
-auto example_dissamble() -> int {
+namespace CHIP8::EXAMPLES {
+auto disassemble() -> int {
     try {
         const fs::path roms_dir = "assets/code";
 
@@ -36,3 +38,23 @@ auto example_dissamble() -> int {
         return 1;
     }
 }
+auto test_suite(Chip8 &c, int idx) -> void {
+    load_program_from_file(c, CONSTANTS::fp_code_test_suite.at(idx));
+}
+
+auto ibm_with_sound(Chip8 &c) -> void {
+    load_program_from_file(c, CONSTANTS::fp_code_ibm_logo);
+    ProgramWriter pw(c, 0x228);
+    pw.jmp(0x300);
+    pw.addr = 0x300;
+    pw.ld_vx_byte(0x5, 40);
+    pw.set_delay(0x5);
+    pw.ld_vx_byte(0x5, 40);
+    pw.set_sound(0x5);
+    pw.ld_vx_dt(0x5);
+    pw.skip_eq(0x5, 0x0);
+    pw.jmp(pw.addr - 0x4);
+    pw.wait_key(0x6);
+    pw.jmp(0x200);
+}
+} // namespace CHIP8::EXAMPLES

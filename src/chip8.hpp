@@ -639,48 +639,8 @@ inline auto write_program_to_memory(Chip8 &c, const std::vector<WORD> data) -> v
     }
 }
 
-inline auto load_program_example_ibm(Chip8 &c) -> void {
-    write_program_to_memory(c, load_ch8("assets/IBM Logo.ch8"));
-}
-
-inline auto load_program_example_corax_test_rom(Chip8 &c) -> void {
-    // https://github.com/corax89/chip8-test-rom
-    write_program_to_memory(c, load_ch8("assets/test_opcode.ch8"));
-}
-
-inline auto load_program_example_chip8_logo(Chip8 &c) -> void {
-    // https://github.com/Timendus/chip8-test-suite
-    write_program_to_memory(c, load_ch8("assets/1-chip8-logo.ch8"));
-}
-
-inline auto load_program_example_test_suite_ibm(Chip8 &c) -> void {
-    // https://github.com/Timendus/chip8-test-suite
-    write_program_to_memory(c, load_ch8("assets/2-ibm-logo.ch8"));
-}
-
-inline auto load_program_example_test_suite_corax(Chip8 &c) -> void {
-    // https://github.com/Timendus/chip8-test-suite
-    write_program_to_memory(c, load_ch8("assets/3-corax+.ch8"));
-}
-
-inline auto load_program_example_test_suite_flags(Chip8 &c) -> void {
-    // https://github.com/Timendus/chip8-test-suite
-    write_program_to_memory(c, load_ch8("assets/4-flags.ch8"));
-}
-
-inline auto load_program_example_test_suite_quirks(Chip8 &c) -> void {
-    // https://github.com/Timendus/chip8-test-suite
-    write_program_to_memory(c, load_ch8("assets/5-quirks.ch8"));
-}
-
-inline auto load_program_example_test_suite_keypad(Chip8 &c) -> void {
-    // https://github.com/Timendus/chip8-test-suite
-    write_program_to_memory(c, load_ch8("assets/6-keypad.ch8"));
-}
-
-inline auto load_program_example_test_suite_beep(Chip8 &c) -> void {
-    // https://github.com/Timendus/chip8-test-suite
-    write_program_to_memory(c, load_ch8("assets/7-beep.ch8"));
+inline auto load_program_from_file(Chip8 &c, const std::filesystem::path &filepath) -> void {
+    write_program_to_memory(c, load_ch8(filepath));
 }
 
 inline auto initialise(Chip8 &c) -> void {

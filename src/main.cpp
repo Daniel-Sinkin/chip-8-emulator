@@ -24,8 +24,8 @@ using namespace std::chrono_literals;
 // Project headers
 #include "audio.hpp"
 #include "chip8.hpp"
+#include "chip8_examples.hpp"
 #include "chip8_types.hpp"
-#include "chip8_writer.hpp"
 #include "constants.hpp"
 #include "engine.hpp"
 #include "gl.hpp"
@@ -38,40 +38,9 @@ using namespace std::chrono_literals;
 
 using CHIP8::chip8;
 
-auto example_dissamble() -> int {
-    try {
-        auto path1 = CHIP8::disassemble_rom_to_file("assets/IBM Logo.ch8");
-        std::cout << "Disassembled IBM Logo -> " << path1 << '\n';
-
-        auto path2 = CHIP8::disassemble_rom_to_file("assets/test_opcode.ch8");
-        std::cout << "Disassembled test_opcode -> " << path2 << '\n';
-        return 0;
-    } catch (const std::exception &e) {
-        std::cerr << "Error during disassembly: " << e.what() << '\n';
-        return 1;
-    }
-}
-
-auto example_ibm_with_sound() -> int {
-    CHIP8::load_program_example_ibm(chip8);
-    CHIP8::ProgramWriter pw(chip8, 0x228);
-    pw.jmp(0x300);
-    pw.addr = 0x300;
-    pw.ld_vx_byte(0x5, 40);
-    pw.set_delay(0x5);
-    pw.ld_vx_byte(0x5, 40);
-    pw.set_sound(0x5);
-    pw.ld_vx_dt(0x5);
-    pw.skip_eq(0x5, 0x0);
-    pw.jmp(pw.addr - 0x4);
-    pw.wait_key(0x6);
-    pw.jmp(0x200);
-    return 0;
-}
-
 auto main() -> int {
     CHIP8::initialise(chip8);
-    example_ibm_with_sound();
+    CHIP8::EXAMPLES::test_suite(chip8, 0);
 
     LOG_INFO("Application starting");
 

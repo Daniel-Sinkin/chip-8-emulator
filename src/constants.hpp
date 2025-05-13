@@ -84,6 +84,16 @@ inline constexpr char const *fp_fragment_shader = "assets/shaders/fragment.glsl"
 
 inline constexpr char const *fp_sound_beep = "assets/sound/beep.wav";
 
+inline constexpr std::array<const char *, 7> fp_code_test_suite = {
+    "assets/code/1-chip8-logo.ch8",
+    "assets/code/2-ibm-logo.ch8",
+    "assets/code/3-corax+.ch8",
+    "assets/code/4-flags.ch8",
+    "assets/code/5-quirks.ch8",
+    "assets/code/6-keypad.ch8",
+    "assets/code/7-beep.ch8"};
+inline constexpr char const *fp_code_ibm_logo = "assets/code/IBM Logo.ch8";
+
 inline constexpr std::array<uint8_t, 5 * 16> fontdata{
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
