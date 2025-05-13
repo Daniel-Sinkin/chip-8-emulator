@@ -8,6 +8,7 @@ using glm::vec3;
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
+namespace TYPES {
 struct Position {
     float x;
     float y;
@@ -144,3 +145,4 @@ enum class CollisionDirection {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Position, x, y)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Color, r, g, b)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Rect, position, width, height)
+} // namespace TYPES

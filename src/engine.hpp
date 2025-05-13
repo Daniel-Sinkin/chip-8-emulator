@@ -11,7 +11,8 @@
 #include "log.hpp"
 #include "utils.hpp"
 
-[[nodiscard]] inline auto engine_setup() -> bool {
+namespace ENGINE {
+[[nodiscard]] inline auto setup() -> bool {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
         LOG_ERR(std::string("SDL_Init failed: ") + SDL_GetError());
         return false;
@@ -24,9 +25,9 @@
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 
     global.renderer.window = SDL_CreateWindow(
-        Constants::window_title.data(),
+        CONSTANTS::window_title.data(),
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        Constants::window_width, Constants::window_height,
+        CONSTANTS::window_width, CONSTANTS::window_height,
         SDL_WINDOW_OPENGL);
     if (!global.renderer.window) {
         LOG_ERR(std::string("SDL_CreateWindow failed: ") + SDL_GetError());
@@ -88,7 +89,7 @@
     return true;
 }
 
-inline auto engine_cleanup() -> void {
+inline auto cleanup() -> void {
     LOG_INFO("Cleaning up engine resources");
 
     ImGui_ImplOpenGL3_Shutdown();
@@ -100,3 +101,4 @@ inline auto engine_cleanup() -> void {
     SDL_DestroyWindow(global.renderer.window);
     SDL_Quit();
 }
+} // namespace ENGINE

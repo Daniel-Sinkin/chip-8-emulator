@@ -12,7 +12,7 @@
 
 using CHIP8::chip8;
 
-namespace Render {
+namespace RENDER {
 inline auto display_grid() -> void {
     constexpr int pixel_size = 10;
 
@@ -209,4 +209,4 @@ inline auto frame() -> void {
         1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 }
-} // namespace Render
+} // namespace RENDER

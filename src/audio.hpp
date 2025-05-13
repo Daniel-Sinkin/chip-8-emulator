@@ -31,7 +31,7 @@ inline void init() {
         throw std::runtime_error("Mix_OpenAudio failed: " + std::string(Mix_GetError()));
     }
 
-    global.audio.beep_sound = Mix_LoadWAV(Constants::fp_sound_beep);
+    global.audio.beep_sound = Mix_LoadWAV(CONSTANTS::fp_sound_beep);
     if (!global.audio.beep_sound) {
         throw std::runtime_error("Failed to load beep: " + std::string(Mix_GetError()));
     }

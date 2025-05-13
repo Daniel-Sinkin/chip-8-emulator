@@ -268,7 +268,7 @@ inline auto exec_add_i(Chip8 &c, WORD w) -> void {
 inline auto exec_set_i_sprite(Chip8 &c, WORD w) -> void {
     constexpr WORD bytes_per_char = 5;
     BYTE digit = c.VX[field_X(w)] & 0x0F;
-    c.I = Constants::rom_font_start + digit * bytes_per_char;
+    c.I = CONSTANTS::rom_font_start + digit * bytes_per_char;
 }
 inline auto exec_store_bcd(Chip8 &c, WORD w) -> void {
     if (c.I + 2 >= c.mem.size()) PANIC("I overflow");
@@ -629,7 +629,7 @@ inline auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD>
 }
 
 inline auto write_program_to_memory(Chip8 &c, const std::vector<WORD> data) -> void {
-    WORD addr = Constants::rom_program_start;
+    WORD addr = CONSTANTS::rom_program_start;
     for (WORD instr : data) {
         if (addr + 1 >= c.mem.size()) {
             PANIC("Instruction write exceeds memory bound!");
@@ -685,13 +685,13 @@ inline auto load_program_example_test_suite_beep(Chip8 &c) -> void {
 
 inline auto initialise(Chip8 &c) -> void {
     { // Font data
-        size_t loc = Constants::rom_font_start;
-        for (auto &font : Constants::fontdata) {
+        size_t loc = CONSTANTS::rom_font_start;
+        for (auto &font : CONSTANTS::fontdata) {
             c.mem[loc] = font;
             ++loc;
         }
     } // Font data
-    c.PC = Constants::rom_program_start;
+    c.PC = CONSTANTS::rom_program_start;
     c.last_timer_update = std::chrono::steady_clock::now();
 }
 
@@ -701,14 +701,14 @@ inline auto update_timers(Chip8 &c) -> void {
     auto current_time = steady_clock::now();
     auto time_passed = current_time - c.last_timer_update;
 
-    auto ticks = time_passed / Constants::timer_update_delay;
+    auto ticks = time_passed / CONSTANTS::timer_update_delay;
     if (ticks > 0) {
         BYTE ticks_u8 = static_cast<uint16_t>(ticks);
 
         c.delay_timer = (c.delay_timer > ticks_u8) ? c.delay_timer - ticks_u8 : 0;
         c.sound_timer = (c.sound_timer > ticks_u8) ? c.sound_timer - ticks_u8 : 0;
 
-        c.last_timer_update += Constants::timer_update_delay * ticks;
+        c.last_timer_update += CONSTANTS::timer_update_delay * ticks;
         Audio::updateBeep(c.sound_timer > 0);
     }
 }
@@ -721,7 +721,7 @@ inline auto step(Chip8 &c, size_t num_iterations) -> void {
     }
 }
 inline auto step(Chip8 &c) -> void {
-    step(c, Constants::n_iter_per_frame);
+    step(c, CONSTANTS::n_iter_per_frame);
 }
 
 /**
@@ -755,7 +755,7 @@ inline auto disassemble_rom_to_file(
             "Failed to create listing file: " + out_path->string());
     }
 
-    WORD pc = Constants::rom_program_start;
+    WORD pc = CONSTANTS::rom_program_start;
     for (const WORD instr : instructions) {
         ofs << format_instruction_line(pc, instr) << '\n';
         pc += 2; // each opcode = 2 bytes

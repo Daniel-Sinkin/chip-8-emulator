@@ -8,7 +8,7 @@
 
 using namespace std::chrono_literals;
 
-namespace Constants {
+namespace CONSTANTS {
 inline constexpr std::string_view window_title = "Chip-8 Emulator";
 inline constexpr int window_width = 1280;
 inline constexpr int window_height = 720;
@@ -102,4 +102,4 @@ inline constexpr std::array<uint8_t, 5 * 16> fontdata{
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
-} // namespace Constants
+} // namespace CONSTANTS

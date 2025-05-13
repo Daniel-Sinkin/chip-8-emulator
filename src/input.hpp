@@ -12,12 +12,13 @@
 
 using CHIP8::chip8;
 
+namespace INPUT {
 inline auto update_mouse_position() -> void {
     int mouse_x, mouse_y;
     SDL_GetMouseState(&mouse_x, &mouse_y);
     global.input.mouse_pos = Position{
-        static_cast<float>(mouse_x) / Constants::window_width,
-        static_cast<float>(mouse_y) / Constants::window_height};
+        static_cast<float>(mouse_x) / CONSTANTS::window_width,
+        static_cast<float>(mouse_y) / CONSTANTS::window_height};
 }
 
 // clang-format off
@@ -76,7 +77,7 @@ inline auto handle_event(const SDL_Event &event) -> void {
 
     case SDL_MOUSEBUTTONDOWN:
         if (event.button.button == SDL_BUTTON_RIGHT) {
-            Position mouse_pos_ndc = window_normalized_to_ndc(global.input.mouse_pos, Constants::aspect_ratio);
+            Position mouse_pos_ndc = window_normalized_to_ndc(global.input.mouse_pos, CONSTANTS::aspect_ratio);
             LOG_INFO("Right click NDC: " + to_string(mouse_pos_ndc));
         }
         break;
@@ -92,3 +93,4 @@ inline auto handle_input() -> void {
         handle_event(event);
     }
 }
+} // namespace INPUT

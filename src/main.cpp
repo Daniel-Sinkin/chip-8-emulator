@@ -71,16 +71,11 @@ auto example_ibm_with_sound() -> int {
 
 auto main() -> int {
     CHIP8::initialise(chip8);
-    // CHIP8::load_program_example_corax_test_rom(chip8);
-    // CHIP8::load_program_example_test_suite_flags(chip8); // Doesn't Work
-    // CHIP8::load_program_example_test_suite_quirks(chip8); // Doesn't Work
-    // CHIP8::load_program_example_test_suite_keypad(chip8); // Doesn't Work
-    // CHIP8::load_program_example_test_suite_beep(chip8); // Doesn't Work
     example_ibm_with_sound();
 
     LOG_INFO("Application starting");
 
-    if (!engine_setup()) PANIC("Setup failed!");
+    if (!ENGINE::setup()) PANIC("Setup failed!");
     LOG_INFO("Engine setup complete");
 
     global.is_running = true;
@@ -98,9 +93,9 @@ auto main() -> int {
 
         CHIP8::step(chip8, 1);
 
-        handle_input();
-        Render::gui_debug();
-        Render::frame();
+        INPUT::handle_input();
+        RENDER::gui_debug();
+        RENDER::frame();
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(global.renderer.window);
@@ -109,7 +104,7 @@ auto main() -> int {
     }
 
     LOG_INFO("Main loop exited");
-    engine_cleanup();
+    ENGINE::cleanup();
     LOG_INFO("Engine cleanup complete");
     LOG_INFO("Application exiting successfully");
 

@@ -12,7 +12,7 @@ public:
     void set_addr(WORD new_addr) { addr = new_addr; }
 
     /// Create a ProgramWriter for `chip`, starting at `start`.
-    explicit ProgramWriter(Chip8 &chip, WORD start = Constants::rom_program_start)
+    explicit ProgramWriter(Chip8 &chip, WORD start = CONSTANTS::rom_program_start)
         : c(chip), addr(start) {}
 
     /// (0NNN) Jump to system routine at NNN (ignored by most interpreters).
@@ -132,7 +132,7 @@ public:
         if (n == 0) return;
 
         const std::size_t MEM_SIZE = c.mem.size();
-        std::size_t start = (start_pos == 0) ? Constants::rom_program_start : start_pos;
+        std::size_t start = (start_pos == 0) ? CONSTANTS::rom_program_start : start_pos;
 
         if (start >= MEM_SIZE) return;                      // start beyond RAM
         if (block_len == 0 || start + block_len > MEM_SIZE) // “move all”
@@ -207,7 +207,7 @@ public:
         std::size_t length) -> void {
         const std::size_t MEM_SIZE = c.mem.size();
         std::size_t start = (start_pos == 0)
-                                ? Constants::rom_program_start
+                                ? CONSTANTS::rom_program_start
                                 : start_pos;
         if (start >= MEM_SIZE || length == 0) return;
 

@@ -8,6 +8,9 @@
 #include "gl.hpp"
 #include "types.hpp"
 
+using TYPES::Color;
+using TYPES::Position;
+
 struct RendererState {
     SDL_Window *window = nullptr;
     SDL_GLContext gl_context = nullptr;
@@ -44,7 +47,7 @@ struct InputState {
 };
 
 struct ColorPalette {
-    Color background = color_from_u8(15, 15, 21);
+    Color background = TYPES::color_from_u8(15, 15, 21);
     Color pixel_on = Color{1.0f, 1.0f, 1.0f};
     Color pixel_off = Color{0.0f, 0.0f, 0.0f};
 };

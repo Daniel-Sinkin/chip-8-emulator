@@ -1,8 +1,8 @@
+/* danielsinkin97@gmail.com */
 #include "chip8.hpp"
 #include "types.hpp"
 
-using namespace CHIP8;
-namespace CHIP8_TESTS {
+namespace CHIP8::TESTS {
 auto opcode_roundtrip() -> void {
     for (int raw = 0x0000; raw <= 0xFFFF; ++raw) {
         WORD opcode = static_cast<WORD>(raw);
@@ -20,4 +20,4 @@ auto opcode_roundtrip() -> void {
         assert(doc.has_value());
     }
 }
-} // namespace CHIP8_TESTS
+} // namespace CHIP8::TESTS
