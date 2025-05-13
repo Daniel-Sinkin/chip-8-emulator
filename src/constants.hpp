@@ -93,6 +93,8 @@ inline constexpr std::array<const char *, 7> fp_code_test_suite = {
     "assets/code/6-keypad.ch8",
     "assets/code/7-beep.ch8"};
 inline constexpr char const *fp_code_ibm_logo = "assets/code/IBM Logo.ch8";
+// https://github.com/stianeklund/chip8
+inline constexpr char const *fp_code_pong = "assets/code/PONG.ch8";
 
 inline constexpr std::array<uint8_t, 5 * 16> fontdata{
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0

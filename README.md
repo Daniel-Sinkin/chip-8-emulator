@@ -1,9 +1,9 @@
 # chip-8-emulator 
-chip-8-emulator 
+![[screenshots/Screenshot 2025-05-13 at 11.49.34.png]]
 
-# TODO
-Pull the https://github.com/Timendus/chip8-test-suite tests on build, I don't want to
-push them to my repo.
+# Videos
+* https://www.youtube.com/watch?v=De4OTdPrqz8
+* https://www.youtube.com/watch?v=bWsILz87bE4
 
 # References
 * https://tobiasvl.github.io/blog/write-a-chip-8-emulator/

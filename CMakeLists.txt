@@ -22,6 +22,7 @@ set(CHIP8_TEST_URLS
     "https://github.com/Timendus/chip8-test-suite/raw/main/bin/5-quirks.ch8"
     "https://github.com/Timendus/chip8-test-suite/raw/main/bin/6-keypad.ch8"
     "https://github.com/Timendus/chip8-test-suite/raw/main/bin/7-beep.ch8"
+    "https://github.com/stianeklund/chip8/raw/refs/heads/master/roms/PONG.ch8"
 )
 
 foreach(url IN LISTS CHIP8_TEST_URLS)
