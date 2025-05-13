@@ -1,7 +1,7 @@
 #pragma once
 
+#include "../types.hpp"
 #include "chip8.hpp"
-#include "types.hpp"
 
 namespace CHIP8 {
 class ProgramWriter {

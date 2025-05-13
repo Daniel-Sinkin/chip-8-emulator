@@ -13,11 +13,11 @@
 #include <string>
 #include <string_view>
 
-#include "audio.hpp"
+#include "../audio.hpp"
+#include "../constants.hpp"
+#include "../log.hpp"
+#include "../utils.hpp"
 #include "chip8_types.hpp"
-#include "constants.hpp"
-#include "log.hpp"
-#include "utils.hpp"
 
 namespace CHIP8 {
 struct Chip8Config {

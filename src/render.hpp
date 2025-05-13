@@ -6,7 +6,7 @@
 #include "imgui.h"
 #include <glad/glad.h>
 
-#include "chip8.hpp"
+#include "chip8/chip8.hpp"
 #include "global.hpp"
 #include "utils.hpp"
 

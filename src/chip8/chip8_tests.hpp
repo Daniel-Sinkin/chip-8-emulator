@@ -1,6 +1,5 @@
 /* danielsinkin97@gmail.com */
 #include "chip8.hpp"
-#include "types.hpp"
 
 namespace CHIP8::TESTS {
 auto opcode_roundtrip() -> void {

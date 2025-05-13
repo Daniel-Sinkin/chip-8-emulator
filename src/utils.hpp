@@ -5,6 +5,7 @@
 #include "types.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <ctime>
 #include <iomanip>
 #include <sstream>
@@ -56,9 +57,9 @@ format_duration(std::chrono::duration<float> duration) -> std::string {
     return std::string(buffer);
 }
 
-[[nodiscard]] inline auto get_random_byte() -> BYTE {
+[[nodiscard]] inline auto get_random_byte() -> uint8_t {
     static std::random_device rd;
     static std::mt19937 gen(rd());
     static std::uniform_int_distribution<int> dist(0, 255);
-    return static_cast<BYTE>(dist(gen));
+    return static_cast<uint8_t>(dist(gen));
 }

@@ -23,9 +23,9 @@ using namespace std::chrono_literals;
 
 // Project headers
 #include "audio.hpp"
-#include "chip8.hpp"
-#include "chip8_examples.hpp"
-#include "chip8_types.hpp"
+#include "chip8/chip8.hpp"
+#include "chip8/chip8_examples.hpp"
+#include "chip8/chip8_types.hpp"
 #include "constants.hpp"
 #include "engine.hpp"
 #include "gl.hpp"

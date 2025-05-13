@@ -1,7 +1,7 @@
 /* danielsinkin97@gmail.com */
 #pragma once
 
-#include "chip8.hpp"
+#include "chip8/chip8.hpp"
 #include "constants.hpp"
 #include "log.hpp"
 #include "types.hpp"
@@ -11,6 +11,7 @@
 #include <SDL.h>
 
 using CHIP8::chip8;
+// TODO: Seperate the CHIP8 specific input to the chip8 module
 
 namespace INPUT {
 inline auto update_mouse_position() -> void {
