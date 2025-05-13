@@ -43,6 +43,8 @@ struct Chip8Config {
     so perhaps it’s safe to do it like the Amiga interpreter did.
     */
     bool legacy_add_index = false;
+    /* If set and legacy_add_index is not set then we flush VF in the instruction. */
+    bool modern_add_index_flush_vf = false;
     /*
     https://tobiasvl.github.io/blog/write-a-chip-8-emulator/#fx55-and-fx65-store-and-load-memory
     */
@@ -52,8 +54,8 @@ struct Chip8 {
     std::array<BYTE, 4 * 1024> mem = {};
     std::array<std::array<PIXEL, 64>, 32> display = {};
     WORD PC = 0;
-    WORD I = 0; // index register
-    int stack_pointer = 0;
+    WORD I = 0;             // index register
+    int stack_pointer = -1; // If init to 0 we would never actually use 0, wasting one slot
     std::array<WORD, 32> stack = {};
     BYTE delay_timer = 0;
     BYTE sound_timer = 0;
@@ -62,6 +64,7 @@ struct Chip8 {
     int iteration_counter = 0;
     Chip8Config config;
     std::array<bool, 16> keypad = {};
+    std::array<bool, 16> just_pressed = {};
 };
 inline Chip8 chip8;
 
@@ -77,16 +80,21 @@ inline auto clear_display(Chip8 &c) -> void {
     }
 }
 inline auto draw_sprite(Chip8 &c, WORD w) -> void {
-    BYTE x = c.VX[field_X(w)] % 64;
-    BYTE y = c.VX[field_Y(w)] % 32;
+    const BYTE x0 = c.VX[field_X(w)] % 64;
+    const BYTE y0 = c.VX[field_Y(w)] % 32;
+
     c.VX[0xF] = 0;
     for (int row = 0; row < field_N(w); ++row) {
-        uint8_t sprite = c.mem[c.I + row];
+        const uint8_t sprite = c.mem[c.I + row];
+
         for (int bit = 0; bit < 8; ++bit) {
-            auto px = (sprite >> (7 - bit)) & 1;
-            auto &dst = c.display[y + row][x + bit];
+            const BYTE xx = (x0 + bit) & 63;
+            const BYTE yy = (y0 + row) & 31;
+            const PIXEL px = (sprite >> (7 - bit)) & 1;
+
+            PIXEL &dst = c.display[yy][xx];
             if (dst && px) c.VX[0xF] = 1;
-            c.display[y + row][x + bit] ^= px;
+            dst ^= px;
         }
     }
 }
@@ -141,122 +149,153 @@ struct OpInfo {
     EncodeFn encode;
 };
 
-// clang-format off
-inline auto exec_cls                 (Chip8 &c, WORD  ) -> void { clear_display(c); }
-inline auto exec_ret                 (Chip8 &c, WORD  ) -> void { c.PC = c.stack[c.stack_pointer--]; }
-inline auto exec_jmp                 (Chip8 &c, WORD w) -> void { c.PC = field_NNN(w); }
-inline auto exec_call_subroutine     (Chip8 &c, WORD w) -> void { 
+inline auto exec_cls(Chip8 &c, WORD) -> void { clear_display(c); }
+inline auto exec_ret(Chip8 &c, WORD) -> void {
+    if (c.stack_pointer < 0) PANIC("Stack under-flow");
+    c.PC = c.stack[c.stack_pointer--];
+}
+inline auto exec_jmp(Chip8 &c, WORD w) -> void { c.PC = field_NNN(w); }
+inline auto exec_call_subroutine(Chip8 &c, WORD w) -> void {
+    if (++c.stack_pointer >= c.stack.size()) PANIC("Stack overflow");
     c.stack[++c.stack_pointer] = c.PC;
     c.PC = field_NNN(w);
 }
-inline auto exec_skip_eq             (Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] == field_NN(w)) c.PC += 2; }
-inline auto exec_skip_not_eq         (Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] != field_NN(w)) c.PC += 2; }
-inline auto exec_skip_eq_register    (Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] != c.VX[field_Y(w)]) c.PC += 2; }
-inline auto exec_set_register        (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = field_NN(w); }
-inline auto exec_add_to_register     (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] += field_NN(w); } // TODO: What to do about overflow?
-inline auto exec_copy_register       (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = c.VX[field_Y(w)]; }
-inline auto exec_math_or             (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] |= c.VX[field_Y(w)]; }
-inline auto exec_math_and            (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] &= c.VX[field_Y(w)]; }
-inline auto exec_math_xor            (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] ^= c.VX[field_Y(w)]; }
-inline auto exec_math_add            (Chip8 &c, WORD w) -> void {
+inline auto exec_skip_eq(Chip8 &c, WORD w) -> void {
+    if (c.VX[field_X(w)] == field_NN(w)) c.PC += 2;
+}
+inline auto exec_skip_not_eq(Chip8 &c, WORD w) -> void {
+    if (c.VX[field_X(w)] != field_NN(w)) c.PC += 2;
+}
+inline auto exec_skip_eq_register(Chip8 &c, WORD w) -> void {
+    if (c.VX[field_X(w)] == c.VX[field_Y(w)]) c.PC += 2;
+}
+inline auto exec_set_register(Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = field_NN(w); }
+inline auto exec_add_to_register(Chip8 &c, WORD w) -> void {
+    // No carry flag is correct behaviour
+    c.VX[field_X(w)] += field_NN(w);
+}
+inline auto exec_copy_register(Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = c.VX[field_Y(w)]; }
+inline auto exec_math_or(Chip8 &c, WORD w) -> void { c.VX[field_X(w)] |= c.VX[field_Y(w)]; }
+inline auto exec_math_and(Chip8 &c, WORD w) -> void { c.VX[field_X(w)] &= c.VX[field_Y(w)]; }
+inline auto exec_math_xor(Chip8 &c, WORD w) -> void { c.VX[field_X(w)] ^= c.VX[field_Y(w)]; }
+inline auto exec_math_add(Chip8 &c, WORD w) -> void {
     WORD tmp = c.VX[field_X(w)];
     tmp += c.VX[field_Y(w)];
     c.VX[0xF] = (tmp > 0xFF) ? 1 : 0; // Carry Flag bit
     c.VX[field_X(w)] = static_cast<BYTE>(tmp);
 }
-inline auto exec_math_sub            (Chip8 &c, WORD w) -> void {
+inline auto exec_math_sub(Chip8 &c, WORD w) -> void {
     BYTE X = field_X(w);
     BYTE Y = field_Y(w);
     BYTE VX = c.VX[X];
-    BYTE VY= c.VX[Y];
+    BYTE VY = c.VX[Y];
     c.VX[0xF] = (VX >= VY) ? 1 : 0; // If NOT underflowing we set flag
-    c.VX[X] -= VY;
+    c.VX[X] = VX - VY;
 }
-inline auto exec_shr                 (Chip8 &c, WORD w) -> void {
+inline auto exec_shr(Chip8 &c, WORD w) -> void {
     BYTE X = field_X(w);
-    if(c.config.legacy_shift) c.VX[X] = c.VX[field_Y(w)];
-    c.VX[0xF] = c.VX[X] & 1;
-    c.VX[X] >>= 1;
+    BYTE VX = c.VX[X];
+    if (c.config.legacy_shift) {
+        VX = c.VX[field_Y(w)];
+        c.VX[X] = VX;
+    }
+    c.VX[0xF] = VX & 1;
+    c.VX[X] = VX >> 1;
 }
-inline auto exec_subn                (Chip8 &c, WORD w) -> void {
+inline auto exec_subn(Chip8 &c, WORD w) -> void {
     BYTE X = field_X(w);
     BYTE Y = field_Y(w);
     BYTE VX = c.VX[X];
-    BYTE VY= c.VX[Y];
+    BYTE VY = c.VX[Y];
     c.VX[0xF] = (VY >= VX) ? 1 : 0; // If NOT underflowing we set flag
-    c.VX[X] = (VY - VX);
+    c.VX[X] = VY - VX;
 }
-inline auto exec_shl                 (Chip8 &c, WORD w) -> void {
+inline auto exec_shl(Chip8 &c, WORD w) -> void {
     BYTE X = field_X(w);
-    if(c.config.legacy_shift) c.VX[X] = c.VX[field_Y(w)];
-    c.VX[0xF] = c.VX[X] & 1;
-    c.VX[X] <<= 1;
+    BYTE VX = c.VX[X];
+    if (c.config.legacy_shift) {
+        VX = c.VX[field_Y(w)];
+        c.VX[X] = VX;
+    }
+    c.VX[0xF] = (VX >> 7) & 1;
+    c.VX[X] = VX << 1;
 }
-inline auto exec_skip_not_eq_register(Chip8 &c, WORD w) -> void { if(c.VX[field_X(w)] != c.VX[field_Y(w)]) c.PC += 2; }
-inline auto exec_set_i               (Chip8 &c, WORD w) -> void {c.I = field_NNN(w);}
-inline auto exec_jmp_offset          (Chip8 &c, WORD w) -> void { c.PC = field_NNN(w) + c.VX[0x0]; }
-inline auto exec_get_random          (Chip8 &c, WORD w) -> void {
+inline auto exec_skip_not_eq_register(Chip8 &c, WORD w) -> void {
+    if (c.VX[field_X(w)] != c.VX[field_Y(w)]) c.PC += 2;
+}
+inline auto exec_set_i(Chip8 &c, WORD w) -> void { c.I = field_NNN(w); }
+inline auto exec_jmp_offset(Chip8 &c, WORD w) -> void { c.PC = field_NNN(w) + c.VX[0x0]; }
+inline auto exec_get_random(Chip8 &c, WORD w) -> void {
     BYTE rand = get_random_byte();
     c.VX[field_X(w)] = rand & field_NN(w);
 }
-inline auto exec_draw                (Chip8 &c, WORD w) -> void { draw_sprite(c, w); }
-inline auto exec_skip_pressed        (Chip8 &c, WORD w) -> void {
+inline auto exec_draw(Chip8 &c, WORD w) -> void { draw_sprite(c, w); }
+inline auto exec_skip_pressed(Chip8 &c, WORD w) -> void {
     BYTE key_target = c.VX[field_X(w)];
-    if(key_target > 0xF) PANIC("In exec_skip_pressed, VX value must be <= 0xF!");
-    if(c.keypad[key_target]) c.PC += 2;
+    if (key_target > 0xF) PANIC("In exec_skip_pressed, VX value must be <= 0xF!");
+    if (c.keypad[key_target]) c.PC += 2;
 }
-inline auto exec_skip_not_pressed    (Chip8 &c, WORD w) -> void {
+inline auto exec_skip_not_pressed(Chip8 &c, WORD w) -> void {
     BYTE key_target = c.VX[field_X(w)];
-    if(key_target > 0xF) PANIC("In exec_skip_not_pressed, VX value must be <= 0xF!");
-    if(!c.keypad[key_target]) c.PC += 2;
+    if (key_target > 0xF) PANIC("In exec_skip_not_pressed, VX value must be <= 0xF!");
+    if (!c.keypad[key_target]) c.PC += 2;
 }
-inline auto exec_load_delay          (Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = c.delay_timer; }
-inline auto exec_wait_key            (Chip8 &c, WORD w) -> void {
-    for(size_t i = 0; i < 0xF; i++) {
-        if(c.keypad[i]) {
+inline auto exec_load_delay(Chip8 &c, WORD w) -> void { c.VX[field_X(w)] = c.delay_timer; }
+inline auto exec_wait_key(Chip8 &c, WORD w) -> void {
+    for (size_t i = 0; i <= 0xF; i++) {
+        if (c.just_pressed[i]) {
             c.VX[field_X(w)] = i;
             return;
         }
     }
-    c.PC -= 2; // Repeat 
+    c.PC -= 2; // Repeat
 }
-inline auto exec_set_delay           (Chip8 &c, WORD w) -> void { c.delay_timer = c.VX[field_X(w)]; }
-inline auto exec_set_sound           (Chip8 &c, WORD w) -> void { c.sound_timer = c.VX[field_X(w)]; }
-inline auto exec_add_i               (Chip8 &c, WORD w) -> void {
+inline auto exec_set_delay(Chip8 &c, WORD w) -> void { c.delay_timer = c.VX[field_X(w)]; }
+inline auto exec_set_sound(Chip8 &c, WORD w) -> void { c.sound_timer = c.VX[field_X(w)]; }
+inline auto exec_add_i(Chip8 &c, WORD w) -> void {
     BYTE VX = c.VX[field_X(w)];
     WORD tmp = c.I + VX;
-    if(!c.config.legacy_add_index && (tmp > 0xFFF)) {
-        c.VX[0xF] = 1;
+
+    if (c.config.legacy_add_index) {
+        // Amiga-style: set to 1 on overflow, otherwise 0
+        c.VX[0xF] = (tmp > 0xFFF) ? 1 : 0;
+    } else if (c.config.modern_add_index_flush_vf) {
+        c.VX[0xF] = 0;
     }
-    c.I = tmp;
+
+    c.I = tmp & 0x0FFF; // Avoid out of bounds address access
 }
 inline auto exec_set_i_sprite(Chip8 &c, WORD w) -> void {
-    constexpr WORD bytes_per_char = 5; 
-    BYTE digit = c.VX[field_X(w)] & 0x0F;    
+    constexpr WORD bytes_per_char = 5;
+    BYTE digit = c.VX[field_X(w)] & 0x0F;
     c.I = Constants::rom_font_start + digit * bytes_per_char;
 }
-inline auto exec_store_bcd           (Chip8 &c, WORD w) -> void {
+inline auto exec_store_bcd(Chip8 &c, WORD w) -> void {
+    if (c.I + 2 >= c.mem.size()) PANIC("I overflow");
     BYTE VX = c.VX[field_X(w)];
     c.mem[c.I] = VX / 100;
     c.mem[c.I + 1] = (VX / 10) % 10;
     c.mem[c.I + 2] = VX % 10;
 }
-inline auto exec_dump_registers      (Chip8 &c, WORD w) -> void {
+inline auto exec_dump_registers(Chip8 &c, WORD w) -> void {
     BYTE X = field_X(w);
-    for(size_t i = 0; i <= X; ++i) {
+    if (c.I + X + 1 >= c.mem.size()) PANIC("I overflow");
+    for (size_t i = 0; i <= X; ++i) {
         c.mem[c.I + i] = c.VX[i];
     }
-    if(c.config.legacy_memory_dump) c.I += X + 1;
+    if (c.config.legacy_memory_dump) c.I += X + 1;
 }
-inline auto exec_fill_registers      (Chip8 &c, WORD w) -> void {
+inline auto exec_fill_registers(Chip8 &c, WORD w) -> void {
     BYTE X = field_X(w);
-    for(size_t i = 0; i <= X; ++i) {
+    if (c.I + X + 1 >= c.mem.size()) PANIC("I overflow");
+    for (size_t i = 0; i <= X; ++i) {
         c.VX[i] = c.mem[c.I + i];
     }
-    if(c.config.legacy_memory_dump) c.I += X + 1;
+    if (c.config.legacy_memory_dump) c.I += X + 1;
 }
-inline auto exec_sys                 (Chip8 &c, WORD w) -> void { PANIC_UNDEFINED(w); }
+inline auto exec_sys(Chip8 &c, WORD w) -> void { PANIC_UNDEFINED(w); }
 
+// clang-format off
 inline auto encode_cls                 (WORD,WORD,WORD,WORD,WORD         ) -> WORD { return 0x00E0; }
 inline auto encode_ret                 (WORD,WORD,WORD,WORD,WORD         ) -> WORD { return 0x00EE; }
 inline auto encode_jmp                 (WORD,WORD,WORD,WORD,WORD NNN     ) -> WORD { return 0x1000 | (NNN & 0x0FFF); }
@@ -331,6 +370,7 @@ inline constexpr const std::array<OpInfo, 35> OPS = {{
     {Op::sys               , 0xF000, 0x0000, "SYS #{NNN:03X}"          , exec_sys                   , encode_sys},
 }};
 namespace detail {
+
     template <size_t N>
     constexpr bool are_unique_mnemonics(const std::array<OpInfo, N>& ops) {
         for (size_t i = 0; i < N; ++i) {
@@ -346,8 +386,25 @@ namespace detail {
         }
         return true;
     }
+
+    template <size_t N>
+    constexpr bool decode_table_has_no_conflicts(const std::array<OpInfo, N>& ops) {
+        for (size_t i = 0; i < N; ++i) {
+            const auto& a = ops[i];
+            for (size_t j = i + 1; j < N; ++j) {
+                if (ops[i].id == Op::sys || ops[j].id == Op::sys) continue;
+
+                uint16_t probe = ops[i].pattern | ops[j].pattern;
+                bool a_matches = (probe & ops[i].mask) == ops[i].pattern;
+                bool b_matches = (probe & ops[j].mask) == ops[j].pattern;
+                if (a_matches && b_matches) return false;
+            }
+        }
+        return true;
+    }
 }
 static_assert(detail::are_unique_mnemonics(OPS), "Duplicate 3-letter opcodes in OPS");
+static_assert(detail::decode_table_has_no_conflicts(OPS), "Decode table has overlapping entries");
 
 
 auto find_op(Op id) -> const OpInfo * {
@@ -512,6 +569,7 @@ inline auto disassemble(WORD w) -> std::string {
 }
 
 inline auto fetch_and_execute(Chip8 &c) -> void {
+    if (c.PC > c.mem.size() - 2) PANIC("PC out of bounds");
     c.iteration_counter += 1;
     WORD w = (c.mem[c.PC] << 8) | c.mem[c.PC + 1];
     c.PC += 2;
@@ -555,7 +613,7 @@ inline auto load_ch8(const std::filesystem::path &filepath) -> std::vector<WORD>
 
     std::vector<BYTE> raw_data(std::istreambuf_iterator<char>(file), {});
     if (raw_data.size() % 2 != 0) {
-        throw std::runtime_error("ROM size is not even — invalid instruction alignment");
+        LOG_WARN("ROM size is not even — invalid instruction alignment");
     }
 
     std::vector<WORD> instructions;
@@ -590,6 +648,41 @@ inline auto load_program_example_corax_test_rom(Chip8 &c) -> void {
     write_program_to_memory(c, load_ch8("assets/test_opcode.ch8"));
 }
 
+inline auto load_program_example_chip8_logo(Chip8 &c) -> void {
+    // https://github.com/Timendus/chip8-test-suite
+    write_program_to_memory(c, load_ch8("assets/1-chip8-logo.ch8"));
+}
+
+inline auto load_program_example_test_suite_ibm(Chip8 &c) -> void {
+    // https://github.com/Timendus/chip8-test-suite
+    write_program_to_memory(c, load_ch8("assets/2-ibm-logo.ch8"));
+}
+
+inline auto load_program_example_test_suite_corax(Chip8 &c) -> void {
+    // https://github.com/Timendus/chip8-test-suite
+    write_program_to_memory(c, load_ch8("assets/3-corax+.ch8"));
+}
+
+inline auto load_program_example_test_suite_flags(Chip8 &c) -> void {
+    // https://github.com/Timendus/chip8-test-suite
+    write_program_to_memory(c, load_ch8("assets/4-flags.ch8"));
+}
+
+inline auto load_program_example_test_suite_quirks(Chip8 &c) -> void {
+    // https://github.com/Timendus/chip8-test-suite
+    write_program_to_memory(c, load_ch8("assets/5-quirks.ch8"));
+}
+
+inline auto load_program_example_test_suite_keypad(Chip8 &c) -> void {
+    // https://github.com/Timendus/chip8-test-suite
+    write_program_to_memory(c, load_ch8("assets/6-keypad.ch8"));
+}
+
+inline auto load_program_example_test_suite_beep(Chip8 &c) -> void {
+    // https://github.com/Timendus/chip8-test-suite
+    write_program_to_memory(c, load_ch8("assets/7-beep.ch8"));
+}
+
 inline auto initialise(Chip8 &c) -> void {
     { // Font data
         size_t loc = Constants::rom_font_start;
@@ -610,8 +703,10 @@ inline auto update_timers(Chip8 &c) -> void {
 
     auto ticks = time_passed / Constants::timer_update_delay;
     if (ticks > 0) {
-        c.delay_timer = (c.delay_timer > ticks) ? c.delay_timer - ticks : 0;
-        c.sound_timer = (c.sound_timer > ticks) ? c.sound_timer - ticks : 0;
+        BYTE ticks_u8 = static_cast<uint16_t>(ticks);
+
+        c.delay_timer = (c.delay_timer > ticks_u8) ? c.delay_timer - ticks_u8 : 0;
+        c.sound_timer = (c.sound_timer > ticks_u8) ? c.sound_timer - ticks_u8 : 0;
 
         c.last_timer_update += Constants::timer_update_delay * ticks;
         Audio::updateBeep(c.sound_timer > 0);

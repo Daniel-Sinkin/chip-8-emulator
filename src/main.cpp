@@ -11,7 +11,6 @@
 
 // Standard library
 #include <array>
-#include <assert.h>
 #include <bitset>
 #include <chrono>
 #include <cstdint>
@@ -52,8 +51,8 @@ auto example_dissamble() -> int {
         return 1;
     }
 }
-auto main(int argc, char **argv) -> int {
-    CHIP8::initialise(chip8);
+
+auto example_ibm_with_sound() -> int {
     CHIP8::load_program_example_ibm(chip8);
     CHIP8::ProgramWriter pw(chip8, 0x228);
     pw.jmp(0x300);
@@ -67,7 +66,16 @@ auto main(int argc, char **argv) -> int {
     pw.jmp(pw.addr - 0x4);
     pw.wait_key(0x6);
     pw.jmp(0x200);
-    CHIP8::dump_memory(chip8);
+    return 0;
+}
+
+auto main() -> int {
+    CHIP8::initialise(chip8);
+    // CHIP8::load_program_example_corax_test_rom(chip8);
+    // CHIP8::load_program_example_test_suite_flags(chip8); // Doesn't Work
+    // CHIP8::load_program_example_test_suite_quirks(chip8); // Doesn't Work
+    // CHIP8::load_program_example_test_suite_keypad(chip8); // Doesn't Work
+    CHIP8::load_program_example_test_suite_beep(chip8); // Doesn't Work
 
     LOG_INFO("Application starting");
 

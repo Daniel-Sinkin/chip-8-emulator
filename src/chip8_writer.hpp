@@ -243,8 +243,17 @@ private:
     Chip8 &c;
 
     /// Encode and write an opcode at `addr`, then advance `addr`.
-    void write_encoded(Op id, WORD X = 0, WORD Y = 0,
-        WORD N = 0, WORD NN = 0, WORD NNN = 0) {
+    auto write_encoded(
+        Op id,
+        WORD X = 0,
+        WORD Y = 0,
+        WORD N = 0,
+        WORD NN = 0,
+        WORD NNN = 0) -> void {
+
+        if ((X > 0xF) || (Y > 0xF)) PANIC("Register index out of range");
+        if (N > 0xF) PANIC("N out of bounds.");
+        if (addr + 1 >= c.mem.size()) PANIC("Program Writer addr overflow!");
         const auto *op = find_op(id);
         if (!op) throw std::runtime_error("Unknown opcode ID");
         WORD instr = op->encode(X, Y, N, NN, NNN);

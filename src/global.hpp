@@ -49,11 +49,17 @@ struct ColorPalette {
     Color pixel_off = Color{0.0f, 0.0f, 0.0f};
 };
 
+struct AudioState {
+    Mix_Chunk *beep_sound = nullptr;
+    bool is_beep_playing = false;
+};
+
 struct Global {
     bool is_running = false;
     RendererState renderer;
     SimulationState sim;
     InputState input;
     ColorPalette color;
+    AudioState audio;
 };
 inline Global global;
