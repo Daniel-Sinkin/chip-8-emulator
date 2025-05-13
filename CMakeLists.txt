@@ -10,6 +10,39 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 include(FetchContent)
 
 # ---------------------------------------
+# Download CHIP-8 test ROMs into assets/code/
+set(CHIP8_ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets/code")
+file(MAKE_DIRECTORY "${CHIP8_ASSETS_DIR}")
+
+set(CHIP8_TEST_URLS
+    "https://github.com/Timendus/chip8-test-suite/raw/main/bin/1-chip8-logo.ch8"
+    "https://github.com/Timendus/chip8-test-suite/raw/main/bin/2-ibm-logo.ch8"
+    "https://github.com/Timendus/chip8-test-suite/raw/main/bin/3-corax+.ch8"
+    "https://github.com/Timendus/chip8-test-suite/raw/main/bin/4-flags.ch8"
+    "https://github.com/Timendus/chip8-test-suite/raw/main/bin/5-quirks.ch8"
+    "https://github.com/Timendus/chip8-test-suite/raw/main/bin/6-keypad.ch8"
+    "https://github.com/Timendus/chip8-test-suite/raw/main/bin/7-beep.ch8"
+)
+
+foreach(url IN LISTS CHIP8_TEST_URLS)
+    get_filename_component(fname "${url}" NAME)
+    set(dest "${CHIP8_ASSETS_DIR}/${fname}")
+
+    message(STATUS "Downloading ${fname}…")
+    file(DOWNLOAD
+        "${url}"
+        "${dest}"
+        SHOW_PROGRESS
+        STATUS dl_status
+        LOG dl_log
+    )
+    list(GET dl_status 0 dl_code)
+    if(NOT dl_code EQUAL 0)
+        message(FATAL_ERROR "Failed to download ${url}: ${dl_log}")
+    endif()
+endforeach()
+
+# ---------------------------------------
 # Fetch GLAD (unchanged)
 FetchContent_Declare(
     glad
@@ -41,7 +74,7 @@ FetchContent_MakeAvailable(stb)
 FetchContent_Declare(
   nlohmann_json
   GIT_REPOSITORY https://github.com/nlohmann/json.git
-  GIT_TAG        v3.11.2       # pick the release you want
+  GIT_TAG        v3.11.2
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
@@ -59,9 +92,8 @@ FetchContent_MakeAvailable(glm)
 FetchContent_Declare(
     sdl2
     GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG release-2.26.5  # or whichever stable release you prefer
+    GIT_TAG release-2.26.5
 )
-# Disable building SDL2 tests/examples to speed up
 set(SDL_TEST OFF CACHE BOOL "" FORCE)
 set(SDL_TESTS OFF CACHE BOOL "" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -72,13 +104,12 @@ FetchContent_MakeAvailable(sdl2)
 FetchContent_Declare(
     sdl2_mixer
     GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git
-    GIT_TAG        release-2.8.1   # latest stable as of May 2025
+    GIT_TAG        release-2.8.1
 )
-# Keep the build small and make sure MP3 is compiled in
-set(SDL2MIXER_VENDORED            ON  CACHE BOOL "" FORCE)  # use bundled decoders
-set(SDL2MIXER_MUSIC_MP3_DRMP3     ON  CACHE BOOL "" FORCE)  # MP3 via dr_mp3
-set(SDL2MIXER_MIDI                OFF CACHE BOOL "" FORCE)  # example: disable MIDI
-set(SDL2MIXER_INSTALL             OFF CACHE BOOL "" FORCE)  # no 'make install'
+set(SDL2MIXER_VENDORED        ON  CACHE BOOL "" FORCE)
+set(SDL2MIXER_MUSIC_MP3_DRMP3 ON  CACHE BOOL "" FORCE)
+set(SDL2MIXER_MIDI            OFF CACHE BOOL "" FORCE)
+set(SDL2MIXER_INSTALL         OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(sdl2_mixer)
 
 # ---------------------------------------
