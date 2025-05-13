@@ -75,7 +75,8 @@ auto main() -> int {
     // CHIP8::load_program_example_test_suite_flags(chip8); // Doesn't Work
     // CHIP8::load_program_example_test_suite_quirks(chip8); // Doesn't Work
     // CHIP8::load_program_example_test_suite_keypad(chip8); // Doesn't Work
-    CHIP8::load_program_example_test_suite_beep(chip8); // Doesn't Work
+    // CHIP8::load_program_example_test_suite_beep(chip8); // Doesn't Work
+    example_ibm_with_sound();
 
     LOG_INFO("Application starting");
 
