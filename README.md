@@ -1,5 +1,5 @@
 # chip-8-emulator 
-![[screenshots/Screenshot 2025-05-13 at 11.49.34.png]]
+![Screenshot](screenshots/Screenshot%202025-05-13%20at%2011.49.34.png)
 
 # Videos
 * https://www.youtube.com/watch?v=De4OTdPrqz8
